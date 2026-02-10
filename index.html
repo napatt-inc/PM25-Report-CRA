@@ -11,103 +11,103 @@
         .fade-in { animation: fadeIn 0.6s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         /* Custom classes for AQI Gradients */
-        .bg-aqi-blue { background: linear-gradient(135deg, #4FC3F7, #0288D1); }
-        .bg-aqi-green { background: linear-gradient(135deg, #81C784, #388E3C); }
-        .bg-aqi-yellow { background: linear-gradient(135deg, #FFF176, #FBC02D); }
-        .bg-aqi-orange { background: linear-gradient(135deg, #FFB74D, #F57C00); }
-        .bg-aqi-red { background: linear-gradient(135deg, #E57373, #D32F2F); }
+        .bg-aqi-blue { background: linear-gradient(135deg, #4FC3F7, #0288D1); box-shadow: 0 10px 25px rgba(2, 136, 209, 0.4); }
+        .bg-aqi-green { background: linear-gradient(135deg, #81C784, #388E3C); box-shadow: 0 10px 25px rgba(56, 142, 60, 0.4); }
+        .bg-aqi-yellow { background: linear-gradient(135deg, #FFD54F, #FBC02D); box-shadow: 0 10px 25px rgba(251, 192, 45, 0.4); }
+        .bg-aqi-orange { background: linear-gradient(135deg, #FFB74D, #F57C00); box-shadow: 0 10px 25px rgba(245, 124, 0, 0.4); }
+        .bg-aqi-red { background: linear-gradient(135deg, #E57373, #D32F2F); box-shadow: 0 10px 25px rgba(211, 47, 47, 0.4); }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen p-6 flex flex-col items-center justify-center">
+<body class="bg-slate-50 min-h-screen p-4 flex flex-col items-center justify-center">
 
-    <div class="w-full max-w-md">
-        <h1 class="text-3xl font-bold text-center text-gray-800 mb-2">สถานการณ์ฝุ่น PM 2.5</h1>
-        <h2 class="text-lg font-normal text-center text-gray-500 mb-8 flex items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" /></svg>
-            <span id="location-name">เขตหลักสี่ กรุงเทพมหานคร</span>
-        </h2>
+    <div class="w-full max-w-sm">
+        <h1 class="text-2xl font-bold text-center text-slate-800 mb-1">สถานการณ์ฝุ่น PM 2.5</h1>
+        <div class="flex items-center justify-center text-slate-500 mb-6 gap-1">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" /></svg>
+            <span id="location-name" class="text-sm font-medium">เขตหลักสี่ (รอข้อมูล...)</span>
+        </div>
 
-        <div id="aqi-card" class="rounded-full shadow-2xl p-10 mb-8 text-center text-white transition-all duration-700 relative overflow-hidden flex flex-col items-center justify-center mx-auto w-72 h-72 bg-gray-300">
+        <div class="flex justify-center mb-8">
+            <div id="aqi-card" class="relative w-64 h-64 rounded-full flex flex-col items-center justify-center text-white transition-all duration-700 bg-gray-300">
+                
+                <div id="loading" class="animate-pulse font-semibold">Loading...</div>
+                
+                <div id="content" class="hidden fade-in flex flex-col items-center justify-center w-full h-full pt-2">
+                    <div id="aqi-icon" class="w-16 h-16 mb-1 opacity-95"></div>
+
+                    <div class="text-7xl font-bold leading-none tracking-tighter shadow-sm" id="aqi">--</div>
+                    <div class="text-sm font-medium uppercase tracking-widest opacity-80 mb-2">AQI</div>
+
+                    <div id="status" class="px-3 py-1 bg-white/20 rounded-full text-lg font-bold backdrop-blur-sm">
+                        รอข้อมูล
+                    </div>
+                </div>
+
+                <div class="absolute inset-2 border-2 border-white/20 rounded-full pointer-events-none"></div>
+            </div>
+        </div>
+
+        <div class="text-center text-slate-400 text-xs mb-6">
+             ข้อมูล ณ วันที่ <span id="time" class="font-semibold text-slate-500">--/--/---- --:--</span>
+        </div>
+
+        <div id="params-card" class="bg-white rounded-2xl shadow-lg p-5 mb-8 hidden fade-in border border-slate-100">
+            <div class="flex items-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                <h3 class="text-md font-bold text-slate-700">พารามิเตอร์ของสถานี</h3>
+            </div>
             
-            <div id="loading" class="animate-pulse font-semibold text-lg">กำลังโหลด...</div>
-            
-            <div id="content" class="hidden fade-in flex flex-col items-center z-10">
-                <div id="aqi-icon" class="mb-2"></div>
-
-                <div class="text-8xl font-extrabold leading-none" id="aqi">--</div>
-                <div class="text-xl font-medium opacity-90 mt-1">AQI</div>
-
-                <div id="status" class="text-2xl font-bold mt-4 tracking-wide">
-                    รอข้อมูล
+            <div class="grid grid-cols-3 gap-2 text-center divide-x divide-slate-100">
+                <div>
+                    <span class="text-xs font-semibold text-slate-400 uppercase">PM 2.5</span>
+                    <div class="text-2xl font-bold text-slate-800 my-1" id="pm25">--</div>
+                    <span class="text-[10px] text-slate-400">µg/m³</span>
                 </div>
-            </div>
-             <div class="absolute inset-0 border-8 border-white opacity-20 rounded-full pointer-events-none"></div>
-        </div>
-        
-        <div class="text-center text-gray-500 text-sm mb-8" id="time-container">
-             ข้อมูล ณ วันที่ <span id="time" class="font-semibold">--/--/---- --:--</span> น.
-        </div>
-
-        <div id="params-card" class="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 mb-8 hidden fade-in">
-            <h3 class="text-xl font-bold text-gray-800 mb-6 text-center flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
-                พารามิเตอร์ของสถานี
-            </h3>
-            <div class="grid grid-cols-3 gap-4 text-center divide-x divide-gray-100">
-                <div class="px-2">
-                    <span class="text-sm font-semibold text-gray-500 block mb-1">PM 2.5</span>
-                    <span class="text-3xl font-bold text-gray-800" id="pm25">--</span>
-                    <span class="text-xs text-gray-400 block mt-1">µg/m³</span>
+                <div>
+                    <span class="text-xs font-semibold text-slate-400 uppercase">PM 10</span>
+                    <div class="text-2xl font-bold text-slate-800 my-1" id="pm10">--</div>
+                    <span class="text-[10px] text-slate-400">µg/m³</span>
                 </div>
-                <div class="px-2">
-                    <span class="text-sm font-semibold text-gray-500 block mb-1">PM 10</span>
-                    <span class="text-3xl font-bold text-gray-800" id="pm10">--</span>
-                    <span class="text-xs text-gray-400 block mt-1">µg/m³</span>
-                </div>
-                <div class="px-2">
-                    <span class="text-sm font-semibold text-gray-500 block mb-1">O3 (โอโซน)</span>
-                    <span class="text-3xl font-bold text-gray-800" id="o3">--</span>
-                    <span class="text-xs text-gray-400 block mt-1">ppb</span>
+                <div>
+                    <span class="text-xs font-semibold text-slate-400 uppercase">O3 (โอโซน)</span>
+                    <div class="text-2xl font-bold text-slate-800 my-1" id="o3">--</div>
+                    <span class="text-[10px] text-slate-400">ppb</span>
                 </div>
             </div>
         </div>
 
-        <div class="flex h-3 rounded-full overflow-hidden shadow-inner mb-10 bg-gray-200">
-            <div class="flex-1 bg-aqi-blue" title="คุณภาพดีมาก (0-25)"></div>
-            <div class="flex-1 bg-aqi-green" title="คุณภาพดี (26-50)"></div>
-            <div class="flex-1 bg-aqi-yellow" title="ปานกลาง (51-100)"></div>
-            <div class="flex-1 bg-aqi-orange" title="เริ่มมีผลกระทบ (101-200)"></div>
-            <div class="flex-1 bg-aqi-red" title="มีผลกระทบ (>200)"></div>
+        <div class="h-2 rounded-full flex w-full overflow-hidden mb-8 shadow-sm">
+             <div class="flex-1 bg-[#4FC3F7]"></div>
+             <div class="flex-1 bg-[#81C784]"></div>
+             <div class="flex-1 bg-[#FFF176]"></div>
+             <div class="flex-1 bg-[#FFB74D]"></div>
+             <div class="flex-1 bg-[#E57373]"></div>
         </div>
 
-        <div id="post-card" class="bg-white rounded-2xl shadow-md overflow-hidden hidden fade-in mb-6 w-full">
-            <div class="bg-gray-800 text-white px-5 py-3 text-sm font-bold flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 3a1 1 0 00-1.447-.894L8.763 6H5a3 3 0 000 6h.28l1.771 5.316A1 1 0 008 18h1a1 1 0 001-1v-4.382l6.553 3.276A1 1 0 0018 15V3z" clip-rule="evenodd" /></svg>
-                ประกาศ / ข่าวสารล่าสุด
+        <div id="post-card" class="bg-white rounded-2xl shadow-lg overflow-hidden hidden fade-in w-full border border-slate-100">
+             <div class="bg-slate-800 text-white px-4 py-3 text-sm font-bold flex items-center">
+                📢 ประกาศ
             </div>
-            <img id="post-img" class="w-full h-56 object-cover hidden">
-            <div class="p-6">
-                <div class="flex items-center text-xs text-gray-400 mb-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    <span id="post-date">--/--/----</span>
-                </div>
-                <h3 id="post-title" class="font-bold text-xl text-gray-800 mb-4 leading-snug"></h3>
-                <a id="post-link" href="#" target="_blank" class="group flex items-center justify-center w-full bg-blue-50 hover:bg-blue-100 text-blue-600 font-semibold py-3 rounded-xl transition border border-blue-200">
-                    <span>ดูรายละเอียดเพิ่มเติม</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-2 transform group-hover:translate-x-1 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+            <img id="post-img" class="w-full h-48 object-cover hidden">
+            <div class="p-4">
+                <div class="text-xs text-slate-400 mb-1" id="post-date">--/--/----</div>
+                <h3 id="post-title" class="font-bold text-md text-slate-800 mb-3"></h3>
+                <a id="post-link" href="#" target="_blank" class="block w-full text-center py-2 rounded-lg bg-blue-50 text-blue-600 font-semibold text-sm hover:bg-blue-100 transition">
+                    ดูรายละเอียด
                 </a>
             </div>
         </div>
-         <div class="mt-2 text-xs text-gray-400" id="source-ref">Source: Loading...</div>
+        
+        <div class="mt-4 text-[10px] text-center text-slate-300 w-full" id="source-ref">Source: Loading...</div>
     </div>
 
     <script>
-        // ไอคอน SVG สำหรับแต่ละสถานะ
+        // ไอคอน SVG ชุดใหม่ (สมมาตรและปากตรง)
         const icons = {
-            smile: `<svg xmlns="http://www.w3.org/2000/svg" class="h-24 w-24" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 100-2 1 1 0 000 2zm7-1a1 1 0 11-2 0 1 1 0 012 0zm-.464 5.535a1 1 0 10-1.415-1.414 3 3 0 01-4.242 0 1 1 0 00-1.415 1.414 5 5 0 007.072 0z" clip-rule="evenodd" /></svg>`,
-            neutral: `<svg xmlns="http://www.w3.org/2000/svg" class="h-24 w-24" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 100-2 1 1 0 000 2zm7-1a1 1 0 11-2 0 1 1 0 012 0zM6 12a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1z" clip-rule="evenodd" /></svg>`,
-            frown: `<svg xmlns="http://www.w3.org/2000/svg" class="h-24 w-24" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 100-2 1 1 0 000 2zm7-1a1 1 0 11-2 0 1 1 0 012 0zm-1 5a1 1 0 011-1 3 3 0 013 3 1 1 0 11-2 0 1 1 0 00-1-1 1 1 0 01-1-1z" clip-rule="evenodd" /></svg>`,
-            sad: `<svg xmlns="http://www.w3.org/2000/svg" class="h-24 w-24" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 100-2 1 1 0 000 2zm7-1a1 1 0 11-2 0 1 1 0 012 0zm3.5 4a.5.5 0 00-.5.5 2.5 2.5 0 01-5 0 .5.5 0 10-1 0 3.5 3.5 0 007 0 .5.5 0 00.5-.5z" clip-rule="evenodd" /></svg>`
+            smile: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-full h-full"><path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm-1.72 6.97a.75.75 0 10-1.06 1.06L10.94 12l-1.72 1.72a.75.75 0 101.06 1.06L12 13.06l1.72 1.72a.75.75 0 101.06-1.06L13.06 12l1.72-1.72a.75.75 0 10-1.06-1.06L12 10.94l-1.72-1.72zM12 8.25a.75.75 0 01.75.75v3.75a.75.75 0 01-1.5 0V9a.75.75 0 01.75-.75z" clip-rule="evenodd" style="display:none" /> <path d="M9 10a1 1 0 11-2 0 1 1 0 012 0zm8 0a1 1 0 11-2 0 1 1 0 012 0zm-1.8 4.5a.75.75 0 00-1.4.4 3.5 3.5 0 01-6.6 0 .75.75 0 00-1.4.4 5 5 0 009.4 0z" /></svg>`, // ยิ้ม
+            neutral: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-full h-full"><path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zM9 10a1 1 0 11-2 0 1 1 0 012 0zm7 1a1 1 0 100-2 1 1 0 000 2zm-8.25 4.5a.75.75 0 01.75-.75h7a.75.75 0 010 1.5h-7a.75.75 0 01-.75-.75z" clip-rule="evenodd" /></svg>`, // เฉยๆ (ปากตรง)
+            frown: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-full h-full"><path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zM9 10a1 1 0 11-2 0 1 1 0 012 0zm7 1a1 1 0 100-2 1 1 0 000 2zm-.5 4a.75.75 0 00-1.4-.4 3.5 3.5 0 01-6.2 0 .75.75 0 00-1.4.4 5 5 0 009 0z" clip-rule="evenodd" /></svg>`, // บึ้ง
+            sad: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-full h-full"><path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zM9 10a1 1 0 11-2 0 1 1 0 012 0zm7 1a1 1 0 100-2 1 1 0 000 2zm-8.8 4.6a.75.75 0 111.1-1.2 4.5 4.5 0 018.4 0 .75.75 0 01-1.1 1.2 3 3 0 00-5.6 0 .75.75 0 01-1.8 0z" clip-rule="evenodd" /></svg>` // เศร้ามาก
         };
 
         function updateDashboard(data) {
@@ -123,19 +123,16 @@
                 content.classList.remove('hidden');
                 paramsCard.classList.remove('hidden');
 
-                // อัปเดตข้อมูลตัวเลข
                 document.getElementById('aqi').innerText = air.aqi;
                 document.getElementById('status').innerText = air.status;
                 document.getElementById('time').innerText = air.time;
-                document.getElementById('location-name').innerText = air.location || "เขตหลักสี่ กรุงเทพมหานคร";
+                document.getElementById('location-name').innerText = air.location;
                 document.getElementById('source-ref').innerText = "Source: " + air.source;
 
-                // อัปเดตพารามิเตอร์อื่นๆ
                 document.getElementById('pm25').innerText = air.pm25;
                 document.getElementById('pm10').innerText = air.pm10;
                 document.getElementById('o3').innerText = air.o3;
 
-                // กำหนดสีและไอคอนตามค่า AQI
                 let bgClass = 'bg-gray-400';
                 let iconHtml = icons.neutral;
                 const aqiVal = parseInt(air.aqi);
@@ -146,17 +143,14 @@
                 else if (aqiVal <= 200) { bgClass = 'bg-aqi-orange'; iconHtml = icons.frown; }
                 else { bgClass = 'bg-aqi-red'; iconHtml = icons.sad; }
 
-                // ลบคลาสสีเดิมออกก่อน แล้วใส่คลาสใหม่
                 aqiCard.classList.remove('bg-gray-300', 'bg-aqi-blue', 'bg-aqi-green', 'bg-aqi-yellow', 'bg-aqi-orange', 'bg-aqi-red');
                 aqiCard.classList.add(bgClass);
                 document.getElementById('aqi-icon').innerHTML = iconHtml;
 
             } else {
                 loading.innerText = "ไม่สามารถดึงข้อมูลได้";
-                aqiCard.classList.add('bg-red-500');
             }
 
-            // อัปเดตส่วนประกาศ
             if (post) {
                 const postCard = document.getElementById('post-card');
                 postCard.classList.remove('hidden');
@@ -174,15 +168,10 @@
             }
         }
 
-        // ดึงข้อมูลเมื่อโหลดหน้าเว็บ
         fetch('/api/data')
             .then(res => res.json())
             .then(data => updateDashboard(data))
-            .catch(err => {
-                console.error(err);
-                document.getElementById('loading').innerText = "Connection Error";
-                document.getElementById('aqi-card').classList.add('bg-red-500');
-            });
+            .catch(err => console.error(err));
     </script>
 </body>
 </html>
