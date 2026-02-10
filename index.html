@@ -38,7 +38,7 @@
                     <div id="aqi-icon" class="w-24 h-24 mb-0 flex items-center justify-center">
                         </div>
 
-                    <div class="text-7xl font-bold leading-none tracking-tighter drop-shadow-md mt-1" id="aqi">--</div>
+                    <div class="text-7xl font-bold leading-none tracking-normal drop-shadow-md mt-1" id="aqi">--</div>
                     <div class="text-sm font-medium uppercase tracking-widest opacity-90 mb-2">AQI</div>
 
                     <div id="status" class="px-4 py-1 bg-white/25 rounded-full text-lg font-bold backdrop-blur-sm shadow-sm border border-white/20">
@@ -105,34 +105,33 @@
     </div>
 
     <script>
-        // ไอคอน SVG แบบลายเส้น (Stroke) ที่สมมาตรและคมชัด
+        // แก้ไข 2: เพิ่มความหนาเส้น (stroke-width) เป็น 2.5 เพื่อให้ตาชัดขึ้น
         const icons = {
-            // ยิ้ม (ดีมาก/ดี)
-            smile: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-full h-full text-white">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M15.182 15.182a4.5 4.5 0 01-6.364 0M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            // 😄 ยิ้ม
+            smile: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-full h-full text-white">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>`,
             
-            // เฉยๆ (ปานกลาง) - ปากตรงเป๊ะ
-            neutral: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-full h-full text-white">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 15h6m-3-12a9 9 0 110 18 9 9 0 010-18z" />
+            // 😐 เฉยๆ
+            neutral: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-full h-full text-white">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 15h6M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>`,
             
-            // บึ้ง (เริ่มมีผลกระทบ)
-            frown: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-full h-full text-white">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M9 15c.001-.001.002-.002.003-.003a4.5 4.5 0 016.364 0" /> </svg>`,
-            
-            // เศร้ามาก (อันตราย) - ใช้หน้าบึ้งแบบเดียวกันแต่พื้นหลังจะเป็นสีแดง
-            sad: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-full h-full text-white">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                  </svg>` // หรือเปลี่ยนเป็นกากบาทถ้าค่าสูงมาก
+            // ☹️ หน้าบึ้ง
+            frown: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-full h-full text-white">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>`,
+
+             // 😫 หน้าแย่สุดๆ (สามเหลี่ยม)
+            sad: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-full h-full text-white">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>`
         };
 
-        // *แก้ไขเพิ่มเติม* ถ้าต้องการหน้าบึ้งแบบโค้งลง ให้ใช้ SVG นี้แทนตัว sad ด้านบน
-        const sadFace = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-full h-full text-white">
+        // ใช้หน้าบึ้งแทนสามเหลี่ยมสำหรับสีแดง (ตามความชอบเดิม)
+        const sadFace = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-full h-full text-white">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>`;
-        
         icons.frown = sadFace;
         icons.sad = sadFace;
 
@@ -184,17 +183,45 @@
                 document.getElementById('post-date').innerText = post.timestamp;
                 document.getElementById('post-link').href = post.fileUrl;
 
+                // ส่วนจัดการรูปภาพ
                 if (post.type && post.type.trim() === 'image') {
                     const img = document.getElementById('post-img');
-                    img.src = post.fileUrl;
+                    let finalUrl = post.fileUrl;
+
+                    // แก้ไข 1: ปรับปรุงการแปลงลิงก์ Google Drive ให้เสถียรขึ้น (ใช้แบบ thumbnail)
+                    if (finalUrl.includes('drive.google.com')) {
+                        let fileId = null;
+                        // รองรับทั้งแบบ /d/ID และ id=ID
+                        if (finalUrl.includes('/d/')) {
+                            const match = finalUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
+                            if (match) fileId = match[1];
+                        } else if (finalUrl.includes('id=')) {
+                            const match = finalUrl.match(/id=([a-zA-Z0-9_-]+)/);
+                            if (match) fileId = match[1];
+                        }
+
+                        // ถ้าเจอ ID ให้ใช้ลิงก์ thumbnail ความละเอียดสูง
+                        if (fileId) {
+                            finalUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000`;
+                        }
+                    }
+
+                    img.src = finalUrl;
                     img.classList.remove('hidden');
+                    
+                    img.onerror = function() {
+                        this.classList.add('hidden');
+                        console.log("❌ โหลดรูปภาพไม่สำเร็จ: " + finalUrl);
+                    };
+
                 } else {
                     document.getElementById('post-img').classList.add('hidden');
                 }
             }
         }
 
-        fetch('/api/data')
+        // ดึงข้อมูล (ใช้ ?t=... เพื่อป้องกัน Cache)
+        fetch('./data.json?t=' + new Date().getTime())
             .then(res => res.json())
             .then(data => updateDashboard(data))
             .catch(err => console.error(err));
