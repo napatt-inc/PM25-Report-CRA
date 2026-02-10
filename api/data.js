@@ -1,104 +1,146 @@
 module.exports = async (req, res) => {
-    // ตั้งค่า Header ให้รองรับ CORS (กรณีรันคนละโดเมน)
+    // -------------------------------------------------------
+    // SETUP: ตั้งค่า Header และ URL
+    // -------------------------------------------------------
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
     res.setHeader(
         'Access-Control-Allow-Headers',
         'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
     );
 
-    // ถ้าเป็น OPTIONS request ให้จบการทำงานเลย
-    if (req.method === 'OPTIONS') {
-        res.status(200).end();
-        return;
-    }
+    if (req.method === 'OPTIONS') { res.status(200).end(); return; }
 
-    // ลิงก์ API
     const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSoa90gy2q_JHhquiUHEYcJA_O-JI0ntib_9NG8heNoGv-GEtco9Bv-bWiSib3vrg7E85Dz5H7JnlWO/pub?gid=0&single=true&output=csv';
-    const AIR4THAI_URL = 'http://air4thai.pcd.go.th/services/getNewAQI_JSON.php?region=1';
+    
+    // API แหล่งต่างๆ
+    const AIRBKK_URL = 'http://www.bangkokairquality.com/bma/json/source_station.php'; // ของ กทม. โดยตรง
+    const AIR4THAI_URL = 'http://air4thai.pcd.go.th/services/getNewAQI_JSON.php?region=1'; // ของกรมควบคุมมลพิษ
     const OPENMETEO_URL = 'https://air-quality-api.open-meteo.com/v1/air-quality?latitude=13.887&longitude=100.579&current=pm10,ozone&timezone=Asia%2FBangkok';
 
-    // ฟังก์ชันดึงข้อมูล Air4Thai (AQI & PM2.5)
-    const getAirData = async () => {
-        let finalData = {
-            aqi: "-",
-            pm25: "-",
-            pm10: "-",
-            o3: "-",
-            status: "รอข้อมูล",
-            time: "-",
-            location: "เขตหลักสี่ (Hybrid)",
-            source: "Air4Thai + OpenMeteo"
-        };
-
+    // -------------------------------------------------------
+    // FUNCTION 1: ดึง AirBKK (กทม.) - ความหวังอันดับ 1
+    // -------------------------------------------------------
+    const getAirBKK = async () => {
         try {
-            // 1. ดึง Air4Thai
-            const airRes = await fetch(AIR4THAI_URL, { 
-                headers: { 'User-Agent': 'Mozilla/5.0' },
-                signal: AbortSignal.timeout(8000) // รอไม่เกิน 8 วิ
-            });
+            const controller = new AbortController();
+            setTimeout(() => controller.abort(), 5000); // Timeout 5 วิ
             
-            if (airRes.ok) {
-                const data = await airRes.json();
-                const stations = data.stations || data;
-                // หาเขตหลักสี่ (bkp97t)
-                const target = stations.find(s => s.stationID === "bkp97t");
+            const res = await fetch(AIRBKK_URL, { signal: controller.signal });
+            if (!res.ok) return null;
+            
+            const data = await res.json();
+            // ค้นหาสถานี "เขตหลักสี่" (รองรับหลายชื่อตัวแปรเผื่อ API เปลี่ยน)
+            const station = data.find(s => {
+                const n = s.name || s.station_name || s.nameTH || ""; 
+                return n.includes('หลักสี่') || n.includes('Laksi');
+            });
 
-                if (target) {
-                    finalData.location = target.nameTH;
-                    
-                    // เจาะจงข้อมูลที่ AQILast ตาม JSON ที่คุณให้มา
-                    const info = target.AQILast || target.LastUpdate;
+            if (station) {
+                // คำนวณ AQI คร่าวๆ จาก PM2.5 (ถ้าไม่มีมาให้)
+                let pm25Val = parseFloat(station.pm25);
+                let aqiVal = station.aqi ? station.aqi : calAQI(pm25Val); 
 
-                    if (info) {
-                        // วันที่และเวลา
-                        if (info.date && info.time) {
-                            finalData.time = `${info.date} ${info.time}`;
-                        }
-
-                        // PM 2.5
-                        if (info.PM25 && info.PM25.value && info.PM25.value !== "-1") {
-                            finalData.pm25 = info.PM25.value;
-                        }
-
-                        // AQI & Status
-                        if (info.AQI) {
-                            if (info.AQI.aqi && info.AQI.aqi !== "-999") finalData.aqi = info.AQI.aqi;
-                            
-                            // แปลงระดับสีเป็นข้อความ
-                            const lvl = info.AQI.color_id || "0";
-                            const levels = ["", "คุณภาพดีมาก", "คุณภาพดี", "ปานกลาง", "เริ่มมีผลกระทบ", "มีผลกระทบต่อสุขภาพ"];
-                            finalData.status = levels[Number(lvl)] || "ปานกลาง";
-                        }
-                    }
-                }
+                return {
+                    source: 'AirBKK (สำนักงานเขตหลักสี่)',
+                    location: station.name || station.nameTH || 'เขตหลักสี่',
+                    time: station.log_datetime || new Date().toLocaleString('th-TH'),
+                    pm25: station.pm25,
+                    pm10: station.pm10, // AirBKK มักมี PM10 ด้วย
+                    aqi: aqiVal,
+                    status: getAQIStatus(aqiVal)
+                };
             }
         } catch (e) {
-            console.error("Air4Thai Error:", e.message);
+            console.error("AirBKK Error:", e.message);
         }
-
-        try {
-            // 2. ดึง OpenMeteo (PM10 & O3)
-            const omRes = await fetch(OPENMETEO_URL, { signal: AbortSignal.timeout(5000) });
-            if (omRes.ok) {
-                const omData = await omRes.json();
-                
-                // เติมค่าที่ขาด
-                finalData.pm10 = omData.current.pm10;
-                finalData.o3 = omData.current.ozone;
-
-                // ถ้า Air4Thai ล่ม ไม่มีเวลา ให้ใช้เวลาจาก OpenMeteo แทน
-                if (finalData.time === "-") {
-                    finalData.time = omData.current.time.replace('T', ' ');
-                }
-            }
-        } catch (e) {
-            console.error("OpenMeteo Error:", e.message);
-        }
-
-        return finalData;
+        return null;
     };
+
+    // -------------------------------------------------------
+    // FUNCTION 2: ดึง Air4Thai (สำรอง) - ถ้าอันแรกพังจะมาใช้อันนี้
+    // -------------------------------------------------------
+    const getAir4Thai = async () => {
+        try {
+            const controller = new AbortController();
+            setTimeout(() => controller.abort(), 5000);
+            
+            const res = await fetch(AIR4THAI_URL, { signal: controller.signal });
+            if (!res.ok) return null;
+            const data = await res.json();
+            const stations = data.stations || data;
+            const target = stations.find(s => s.stationID === "bkp97t"); // สถานีหลักสี่กรมวิทย์
+
+            if (target) {
+                const info = target.AQILast || target.LastUpdate;
+                return {
+                    source: 'Air4Thai (กรมวิทย์ฯ)',
+                    location: target.nameTH,
+                    time: `${info.date} ${info.time}`,
+                    pm25: info.PM25.value,
+                    pm10: "-", // ปกติสถานีนี้ Air4Thai ไม่มี PM10
+                    aqi: info.AQI.aqi,
+                    status: getAQIStatus(info.AQI.aqi)
+                };
+            }
+        } catch (e) { console.error("Air4Thai Error:", e.message); }
+        return null;
+    };
+
+    // -------------------------------------------------------
+    // FUNCTION 3: ดึง OpenMeteo (เอา Ozone และ PM10 เสริม)
+    // -------------------------------------------------------
+    const getOpenMeteo = async () => {
+        try {
+            const res = await fetch(OPENMETEO_URL);
+            if (res.ok) {
+                const data = await res.json();
+                return {
+                    o3: data.current.ozone,
+                    pm10: data.current.pm10,
+                    time: data.current.time
+                };
+            }
+        } catch (e) { console.error("OpenMeteo Error:", e.message); }
+        return { o3: "-", pm10: "-" };
+    };
+
+    // -------------------------------------------------------
+    // HELPER: คำนวณ Status และ AQI
+    // -------------------------------------------------------
+    const getAQIStatus = (aqi) => {
+        aqi = parseFloat(aqi);
+        if (aqi <= 25) return "คุณภาพดีมาก";
+        if (aqi <= 50) return "คุณภาพดี";
+        if (aqi <= 100) return "ปานกลาง";
+        if (aqi <= 200) return "เริ่มมีผลกระทบ";
+        return "มีผลกระทบต่อสุขภาพ";
+    };
+
+    const calAQI = (pm25) => {
+        if(pm25 === "-" || isNaN(pm25)) return "-";
+        return Math.round(pm25 * 4.4); // สูตรประมาณการ
+    }
+
+    // ฟังก์ชันดึง Sheet (เหมือนเดิม)
+    const getSheetData = async () => {
+        try {
+            const res = await fetch(SHEET_CSV_URL + '&t=' + new Date().getTime());
+            const text = await res.text();
+            const rows = text.split(/\r?\n/).filter(row => row.trim() !== "");
+            if (rows.length > 1) {
+                const lastRowStr = rows[rows.length - 1];
+                // Regex แยก CSV แบบบ้านๆ (รองรับ Quoted string)
+                const matches = lastRowStr.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+                if (matches) {
+                     const cols = matches.map(c => c.replace(/^"|"$/g, '').trim());
+                     if(cols.length >= 3) {
+                        return { timestamp: cols[0], type: cols[1], title: cols[2], fileUrl: cols[3] || '#' };
+                     }
+                } else {
+                    const simpleCols = lastRowStr.split(',');
+                    if(simpleCols.length >= 3) return { timestamp: simpleCols
 
     // ฟังก์ชันดึงประกาศจาก Google Sheet (CSV)
     const getSheetData = async () => {
@@ -159,3 +201,4 @@ module.exports = async (req, res) => {
         res.status(500).json({ error: criticalError.message });
     }
 };
+
