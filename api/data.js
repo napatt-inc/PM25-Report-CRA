@@ -1,6 +1,6 @@
 module.exports = async (req, res) => {
     // =================================================================
-    // 🟠 ส่วนที่ 1: ลิงก์ Google Sheet สำหรับประกาศ (คงเดิมไว้)
+    // ลิงก์ Google Sheet ประกาศ (คงเดิม)
     // =================================================================
     const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSoa90gy2q_JHhquiUHEYcJA_O-JI0ntib_9NG8heNoGv-GEtco9Bv-bWiSib3vrg7E85Dz5H7JnlWO/pub?gid=0&single=true&output=csv'; 
     // =================================================================
@@ -8,101 +8,87 @@ module.exports = async (req, res) => {
     let airData = {};
     let postData = null;
 
-    // --- ฟังก์ชันดึงข้อมูล Air4Thai (จาก Link Region 1 ที่ให้มา) ---
+    // --- 1. ฟังก์ชันดึง Air4Thai (เจาะจง ID: bkp97t) ---
     const getAir4Thai = async () => {
-        const targetUrl = 'http://air4thai.pcd.go.th/services/getNewAQI_JSON.php?region=1';
-        
-        const response = await fetch(targetUrl, {
+        console.log("Fetching Air4Thai Region 1...");
+
+        // ใช้ JSON Endpoint (ข้อมูลชุดเดียวกับ XML แต่จัดการง่ายกว่า)
+        const response = await fetch('http://air4thai.pcd.go.th/services/getNewAQI_JSON.php?region=1', {
             headers: { 
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-                'Referer': 'http://air4thai.pcd.go.th/'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
             },
-            signal: AbortSignal.timeout(8000)
+            signal: AbortSignal.timeout(10000) // รอสูงสุด 10 วินาที
         });
 
-        if (!response.ok) throw new Error('Air4Thai Server Error');
+        if (!response.ok) throw new Error('Connect Air4Thai Failed');
         
         const data = await response.json();
-        
-        // ข้อมูล Region 1 มักจะอยู่ใน key ชื่อ "stations"
-        let stations = data.stations || data;
-        if (!Array.isArray(stations)) {
-             // เผื่อ API เปลี่ยนรูปแบบเป็น Object เดี่ยว
-             stations = [stations];
+        const stations = Array.isArray(data.stations) ? data.stations : [data];
+
+        // 🎯 1. ค้นหาด้วยรหัสสถานี "bkp97t" (สำนักงานเขตหลักสี่) ก่อนเป็นอันดับแรก
+        let target = stations.find(s => s.stationID === "bkp97t");
+
+        // 🎯 2. ถ้าเขตหลักสี่ (bkp97t) ปิดปรับปรุง ให้หา "บางเขน" (bkp53t) มาสำรอง
+        if (!target) {
+            console.log("ไม่เจอ bkp97t กำลังหา backup...");
+            target = stations.find(s => s.nameTH.includes("บางเขน"));
         }
-        
-        // 🔍 ระบบค้นหาสถานี (Logic: หลักสี่ -> ทุ่งสองห้อง -> มหาวิทยาลัยเกษตร -> บางเขน)
-        let target = stations.find(s => (s.nameTH && s.nameTH.includes("หลักสี่")) || (s.areaTH && s.areaTH.includes("หลักสี่")));
-        
-        if (!target) target = stations.find(s => (s.areaTH && s.areaTH.includes("ทุ่งสองห้อง")));
-        if (!target) target = stations.find(s => (s.nameTH && s.nameTH.includes("มหาวิทยาลัยเกษตร"))); // ใกล้หลักสี่มาก
-        if (!target) target = stations.find(s => (s.nameTH && s.nameTH.includes("บางเขน")));
 
-        // ถ้าหาไม่เจอจริงๆ ให้เอาตัวแรกของ list (ส่วนมากคือ กรมประชาสัมพันธ์ หรือ ดินแดง)
-        if (!target && stations.length > 0) target = stations[0];
-        if (!target) throw new Error('No Station found in Region 1');
+        if (!target) throw new Error('Station Not Found');
 
-        // ฟังก์ชันช่วยดึงค่า (กัน Error ถ้าค่าเป็น "-")
-        // โครงสร้าง Region 1: params จะอยู่ใน LastUpdate
-        const getVal = (paramName) => {
+        // ฟังก์ชันดึงค่า (จัดการกับค่า "N/A" จาก XML ที่คุณเจอ)
+        const getVal = (param) => {
             try {
-                const item = target.LastUpdate[paramName];
-                if (item && item.value && item.value !== "-") return item.value;
-                return "N/A";
-            } catch (e) { return "N/A"; }
+                // เช็คว่ามี key นี้ไหม และค่าต้องไม่ใช่ "N/A" และไม่ใช่ "-"
+                if (target.LastUpdate[param] && 
+                    target.LastUpdate[param].value !== "N/A" && 
+                    target.LastUpdate[param].value !== "-") {
+                    return target.LastUpdate[param].value;
+                }
+                return "-"; // ถ้าไม่มีค่า ให้ส่งขีดไปแทน (อย่าส่ง Error)
+            } catch (e) {
+                return "-";
+            }
         };
 
         const getAqi = () => {
-            // AQI อาจจะอยู่ใน LastUpdate.AQI.aqi หรือ AQI.aqi
-            if (target.LastUpdate && target.LastUpdate.AQI && target.LastUpdate.AQI.aqi && target.LastUpdate.AQI.aqi !== "-") return target.LastUpdate.AQI.aqi;
-            if (target.AQI && target.AQI.aqi && target.AQI.aqi !== "-") return target.AQI.aqi;
-            return "N/A";
+             // AQI บางทีอยู่ใน AQI object บางทีอยู่ใน LastUpdate
+             if (target.LastUpdate?.AQI?.aqi && target.LastUpdate.AQI.aqi !== "N/A") return target.LastUpdate.AQI.aqi;
+             if (target.AQI?.aqi && target.AQI.aqi !== "N/A") return target.AQI.aqi;
+             // ถ้าหา AQI ไม่ได้ ให้ลองเอา PM2.5 มาคำนวณคร่าวๆ หรือส่ง N/A
+             return "N/A";
         }
 
-        // แปลงระดับ AQI เป็นข้อความสถานะ
-        const aqiVal = parseFloat(getAqi());
-        let statusText = "รอข้อมูล";
-        if (!isNaN(aqiVal)) {
-            if (aqiVal <= 25) statusText = "คุณภาพดีมาก";
-            else if (aqiVal <= 50) statusText = "คุณภาพดี";
-            else if (aqiVal <= 100) statusText = "ปานกลาง";
-            else if (aqiVal <= 200) statusText = "เริ่มมีผลกระทบ";
-            else statusText = "มีผลกระทบต่อสุขภาพ";
-        } else {
-             // ถ้าหา AQI ไม่เจอ ให้ลองดู field "Level"
-             if (target.LastUpdate && target.LastUpdate.AQI && target.LastUpdate.AQI.Level) {
-                 const lvl = target.LastUpdate.AQI.Level;
-                 if(lvl == 1) statusText = "คุณภาพดีมาก";
-                 if(lvl == 2) statusText = "คุณภาพดี";
-                 if(lvl == 3) statusText = "ปานกลาง";
-                 if(lvl == 4) statusText = "เริ่มมีผลกระทบ";
-                 if(lvl == 5) statusText = "มีผลกระทบต่อสุขภาพ";
-             }
-        }
-
+        // เตรียมข้อมูลส่งกลับ
         return {
-            source: 'Air4Thai (Region 1)',
+            source: 'Air4Thai',
             aqi: getAqi(),
-            pm25: getVal('PM25'),
-            pm10: getVal('PM10'),
-            o3: getVal('O3'),
-            status: statusText,
-            color: "", // UI จะคำนวณสีเองจากค่า AQI
+            pm25: getVal('PM25'), // จากภาพของคุณ ค่านี้ควรได้ 37.4
+            pm10: getVal('PM10'), // จากภาพของคุณ ค่านี้จะได้ "-"
+            o3: getVal('O3'),     // จากภาพของคุณ ค่านี้จะได้ "-"
+            status: target.LastUpdate?.AQI?.Level ? getStatusFromLevel(target.LastUpdate.AQI.Level) : "รอข้อมูล",
             time: (target.LastUpdate.date + " " + target.LastUpdate.time),
-            location: target.nameTH + " " + target.areaTH
+            location: target.nameTH // ควรขึ้นว่า "สำนักงานเขตหลักสี่"
         };
     };
 
-    // --- ฟังก์ชันสำรอง (OpenMeteo) ---
+    // แปลง Level 1-5 เป็นข้อความ
+    const getStatusFromLevel = (lvl) => {
+        if(lvl == 1) return "คุณภาพดีมาก";
+        if(lvl == 2) return "คุณภาพดี";
+        if(lvl == 3) return "ปานกลาง";
+        if(lvl == 4) return "เริ่มมีผลกระทบ";
+        if(lvl == 5) return "มีผลกระทบต่อสุขภาพ";
+        return "รอข้อมูล";
+    }
+
+    // --- 2. ฟังก์ชันสำรอง OpenMeteo (กรณี Air4Thai ล่ม) ---
     const getBackupAir = async () => {
-        // พิกัดเขตหลักสี่
-        const lat = 13.887; const lon = 100.587; 
-        const url = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=pm2_5,pm10,ozone,us_aqi&timezone=Asia%2FBangkok`;
-        
+        const url = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=13.887&longitude=100.579&current=pm2_5,pm10,ozone,us_aqi&timezone=Asia%2FBangkok`;
         const response = await fetch(url);
         const data = await response.json();
-        const aqi = data.current.us_aqi;
         
+        let aqi = data.current.us_aqi;
         let status = "ปานกลาง";
         if (aqi <= 50) status = "คุณภาพดีมาก";
         else if (aqi <= 100) status = "คุณภาพดี";
@@ -117,11 +103,11 @@ module.exports = async (req, res) => {
             o3: data.current.ozone,
             status: status,
             time: data.current.time.replace('T', ' '),
-            location: "หลักสี่ (Backup Data)"
+            location: "หลักสี่ (OpenMeteo)"
         };
     };
 
-    // --- ส่วน Google Sheet (เหมือนเดิม) ---
+    // --- 3. ดึงประกาศ (Google Sheet) ---
     const getSheetData = async () => {
         try {
             const sheetRes = await fetch(SHEET_CSV_URL);
@@ -132,8 +118,7 @@ module.exports = async (req, res) => {
                 if (!lastRowStr || lastRowStr.trim() === '') lastRowStr = rows[rows.length - 2];
                 if (lastRowStr) {
                     const columns = [];
-                    let inQuotes = false;
-                    let currentVal = '';
+                    let inQuotes = false; let currentVal = '';
                     for (let char of lastRowStr) {
                         if (char === '"') { inQuotes = !inQuotes; }
                         else if (char === ',' && !inQuotes) { columns.push(currentVal); currentVal = ''; }
@@ -151,25 +136,21 @@ module.exports = async (req, res) => {
                     }
                 }
             }
-        } catch (e) { console.log("Sheet Error", e); }
+        } catch (e) { console.log("Sheet Error"); }
         return null;
     };
 
     // --- Main Logic ---
     try {
-        // พยายามดึง Air4Thai ก่อน
         try { 
             airData = await getAir4Thai(); 
         } catch (e) { 
-            console.log("Air4Thai Region 1 Failed:", e.message);
-            // ถ้าพัง ให้ดึง OpenMeteo แทน
+            console.log("Air4Thai Error:", e.message);
             try { airData = await getBackupAir(); }
-            catch (bkError) { airData = { error: "Data Unavailable" }; }
+            catch (bkError) { airData = { error: "Unavailable" }; }
         }
 
-        // ดึงประกาศ
         postData = await getSheetData();
-
         res.status(200).json({ air: airData, post: postData });
 
     } catch (criticalError) {
