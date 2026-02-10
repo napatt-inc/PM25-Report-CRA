@@ -20,7 +20,7 @@ module.exports = async (req, res) => {
     const OPENMETEO_URL = 'https://air-quality-api.open-meteo.com/v1/air-quality?latitude=13.887&longitude=100.579&current=pm10,ozone&timezone=Asia%2FBangkok';
 
     // -------------------------------------------------------
-    // FUNCTION 1: ดึง AirBKK (กทม.) - ความหวังอันดับ 1
+    // FUNCTION 1: ดึง AirBKK (กทม.)
     // -------------------------------------------------------
     const getAirBKK = async () => {
         try {
@@ -31,14 +31,13 @@ module.exports = async (req, res) => {
             if (!res.ok) return null;
             
             const data = await res.json();
-            // ค้นหาสถานี "เขตหลักสี่" (รองรับหลายชื่อตัวแปรเผื่อ API เปลี่ยน)
+            // ค้นหาสถานี "เขตหลักสี่"
             const station = data.find(s => {
                 const n = s.name || s.station_name || s.nameTH || ""; 
                 return n.includes('หลักสี่') || n.includes('Laksi');
             });
 
             if (station) {
-                // คำนวณ AQI คร่าวๆ จาก PM2.5 (ถ้าไม่มีมาให้)
                 let pm25Val = parseFloat(station.pm25);
                 let aqiVal = station.aqi ? station.aqi : calAQI(pm25Val); 
 
@@ -47,19 +46,17 @@ module.exports = async (req, res) => {
                     location: station.name || station.nameTH || 'เขตหลักสี่',
                     time: station.log_datetime || new Date().toLocaleString('th-TH'),
                     pm25: station.pm25,
-                    pm10: station.pm10, // AirBKK มักมี PM10 ด้วย
+                    pm10: station.pm10,
                     aqi: aqiVal,
                     status: getAQIStatus(aqiVal)
                 };
             }
-        } catch (e) {
-            console.error("AirBKK Error:", e.message);
-        }
+        } catch (e) { console.error("AirBKK Error:", e.message); }
         return null;
     };
 
     // -------------------------------------------------------
-    // FUNCTION 2: ดึง Air4Thai (สำรอง) - ถ้าอันแรกพังจะมาใช้อันนี้
+    // FUNCTION 2: ดึง Air4Thai (สำรอง)
     // -------------------------------------------------------
     const getAir4Thai = async () => {
         try {
@@ -79,7 +76,7 @@ module.exports = async (req, res) => {
                     location: target.nameTH,
                     time: `${info.date} ${info.time}`,
                     pm25: info.PM25.value,
-                    pm10: "-", // ปกติสถานีนี้ Air4Thai ไม่มี PM10
+                    pm10: "-", 
                     aqi: info.AQI.aqi,
                     status: getAQIStatus(info.AQI.aqi)
                 };
@@ -120,19 +117,22 @@ module.exports = async (req, res) => {
 
     const calAQI = (pm25) => {
         if(pm25 === "-" || isNaN(pm25)) return "-";
-        return Math.round(pm25 * 4.4); // สูตรประมาณการ
+        return Math.round(pm25 * 4.4);
     }
 
-    // ฟังก์ชันดึง Sheet (เหมือนเดิม)
+    // -------------------------------------------------------
+    // FUNCTION 4: ดึง Google Sheet
+    // -------------------------------------------------------
     const getSheetData = async () => {
         try {
             const res = await fetch(SHEET_CSV_URL + '&t=' + new Date().getTime());
             const text = await res.text();
             const rows = text.split(/\r?\n/).filter(row => row.trim() !== "");
+            
             if (rows.length > 1) {
                 const lastRowStr = rows[rows.length - 1];
-                // Regex แยก CSV แบบบ้านๆ (รองรับ Quoted string)
                 const matches = lastRowStr.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+                
                 if (matches) {
                      const cols = matches.map(c => c.replace(/^"|"$/g, '').trim());
                      if(cols.length >= 3) {
@@ -140,65 +140,50 @@ module.exports = async (req, res) => {
                      }
                 } else {
                     const simpleCols = lastRowStr.split(',');
-                    if(simpleCols.length >= 3) return { timestamp: simpleCols
-
-    // ฟังก์ชันดึงประกาศจาก Google Sheet (CSV)
-    const getSheetData = async () => {
-        try {
-            // ใส่ ?t=... กัน Cache
-            const res = await fetch(SHEET_CSV_URL + '&t=' + new Date().getTime());
-            const text = await res.text();
-            
-            // แปลง CSV แบบง่ายๆ
-            const rows = text.split(/\r?\n/).filter(row => row.trim() !== "");
-            
-            // อ่านบรรทัดสุดท้าย
-            if (rows.length > 1) {
-                const lastRowStr = rows[rows.length - 1];
-                
-                // Regex แยกคอลัมน์โดยไม่สนเครื่องหมาย , ใน quote ""
-                const matches = lastRowStr.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
-                
-                if (matches) {
-                     const cols = matches.map(c => c.replace(/^"|"$/g, '').trim()); // ลบ quote ออก
-                     
-                     // ตรวจสอบว่ามีข้อมูลครบไหม (Timestamp, Type, Title, URL)
-                     if(cols.length >= 3) {
-                        return {
-                            timestamp: cols[0] || '',
-                            type: cols[1] || 'text',
-                            title: cols[2] || 'ประกาศ',
-                            fileUrl: cols[3] || '#'
-                        };
-                     }
-                } else {
-                    // Fallback ถ้า Regex ไม่เจอ (กรณี CSV ธรรมดา)
-                    const simpleCols = lastRowStr.split(',');
-                    if(simpleCols.length >= 3) {
-                         return {
-                            timestamp: simpleCols[0],
-                            type: simpleCols[1],
-                            title: simpleCols[2],
-                            fileUrl: simpleCols[3] || '#'
-                        };
-                    }
+                    if(simpleCols.length >= 3) return { timestamp: simpleCols[0], type: simpleCols[1], title: simpleCols[2], fileUrl: simpleCols[3] || '#' };
                 }
             }
-        } catch (e) {
-            console.error("Sheet Error:", e.message);
-        }
+        } catch (e) { console.error("Sheet Error:", e.message); }
         return null;
     };
 
+    // -------------------------------------------------------
+    // MAIN PROCESS
+    // -------------------------------------------------------
     try {
-        // ทำงานพร้อมกัน (Parallel) เพื่อความไว
-        const [airData, postData] = await Promise.all([getAirData(), getSheetData()]);
-        
-        // ส่งผลลัพธ์กลับ
-        res.status(200).json({ air: airData, post: postData });
+        // 1. เรียกทุก API พร้อมกัน
+        const [bkkData, air4ThaiData, meteoData, postData] = await Promise.all([
+            getAirBKK(),
+            getAir4Thai(),
+            getOpenMeteo(),
+            getSheetData()
+        ]);
+
+        // 2. รวมข้อมูล (Logic: AirBKK -> Air4Thai)
+        let finalAir = {
+            aqi: "-", pm25: "-", pm10: "-", o3: "-",
+            status: "รอข้อมูล", time: "-", location: "เขตหลักสี่", source: "N/A"
+        };
+
+        // เลือกข้อมูลหลัก
+        if (bkkData) {
+            finalAir = { ...finalAir, ...bkkData };
+        } else if (air4ThaiData) {
+            finalAir = { ...finalAir, ...air4ThaiData };
+        }
+
+        // 3. เติมข้อมูลเสริม (Ozone/PM10) จาก OpenMeteo
+        if (meteoData) {
+            finalAir.o3 = meteoData.o3;
+            if (finalAir.pm10 === "-" || finalAir.pm10 == 0 || finalAir.pm10 === undefined) {
+                finalAir.pm10 = meteoData.pm10;
+            }
+        }
+
+        // ส่งข้อมูลกลับ
+        res.status(200).json({ air: finalAir, post: postData });
 
     } catch (criticalError) {
         res.status(500).json({ error: criticalError.message });
     }
 };
-
