@@ -10,7 +10,8 @@
         body { font-family: 'Kanit', sans-serif; }
         .fade-in { animation: fadeIn 0.6s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        /* Custom classes for AQI Gradients */
+        
+        /* Gradient Colors */
         .bg-aqi-blue { background: linear-gradient(135deg, #4FC3F7, #0288D1); box-shadow: 0 10px 25px rgba(2, 136, 209, 0.4); }
         .bg-aqi-green { background: linear-gradient(135deg, #81C784, #388E3C); box-shadow: 0 10px 25px rgba(56, 142, 60, 0.4); }
         .bg-aqi-yellow { background: linear-gradient(135deg, #FFD54F, #FBC02D); box-shadow: 0 10px 25px rgba(251, 192, 45, 0.4); }
@@ -32,18 +33,20 @@
                 
                 <div id="loading" class="animate-pulse font-semibold">Loading...</div>
                 
-                <div id="content" class="hidden fade-in flex flex-col items-center justify-center w-full h-full pt-2">
-                    <div id="aqi-icon" class="w-16 h-16 mb-1 opacity-95"></div>
+                <div id="content" class="hidden fade-in flex flex-col items-center justify-center w-full h-full pt-1">
+                    
+                    <div id="aqi-icon" class="w-24 h-24 mb-0 flex items-center justify-center">
+                        </div>
 
-                    <div class="text-7xl font-bold leading-none tracking-tighter shadow-sm" id="aqi">--</div>
-                    <div class="text-sm font-medium uppercase tracking-widest opacity-80 mb-2">AQI</div>
+                    <div class="text-7xl font-bold leading-none tracking-tighter drop-shadow-md mt-1" id="aqi">--</div>
+                    <div class="text-sm font-medium uppercase tracking-widest opacity-90 mb-2">AQI</div>
 
-                    <div id="status" class="px-3 py-1 bg-white/20 rounded-full text-lg font-bold backdrop-blur-sm">
+                    <div id="status" class="px-4 py-1 bg-white/25 rounded-full text-lg font-bold backdrop-blur-sm shadow-sm border border-white/20">
                         รอข้อมูล
                     </div>
                 </div>
 
-                <div class="absolute inset-2 border-2 border-white/20 rounded-full pointer-events-none"></div>
+                <div class="absolute inset-3 border-2 border-white/20 rounded-full pointer-events-none"></div>
             </div>
         </div>
 
@@ -69,7 +72,7 @@
                     <span class="text-[10px] text-slate-400">µg/m³</span>
                 </div>
                 <div>
-                    <span class="text-xs font-semibold text-slate-400 uppercase">O3 (โอโซน)</span>
+                    <span class="text-xs font-semibold text-slate-400 uppercase">O3</span>
                     <div class="text-2xl font-bold text-slate-800 my-1" id="o3">--</div>
                     <span class="text-[10px] text-slate-400">ppb</span>
                 </div>
@@ -102,13 +105,36 @@
     </div>
 
     <script>
-        // ไอคอน SVG ชุดใหม่ (สมมาตรและปากตรง)
+        // ไอคอน SVG แบบลายเส้น (Stroke) ที่สมมาตรและคมชัด
         const icons = {
-            smile: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-full h-full"><path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm-1.72 6.97a.75.75 0 10-1.06 1.06L10.94 12l-1.72 1.72a.75.75 0 101.06 1.06L12 13.06l1.72 1.72a.75.75 0 101.06-1.06L13.06 12l1.72-1.72a.75.75 0 10-1.06-1.06L12 10.94l-1.72-1.72zM12 8.25a.75.75 0 01.75.75v3.75a.75.75 0 01-1.5 0V9a.75.75 0 01.75-.75z" clip-rule="evenodd" style="display:none" /> <path d="M9 10a1 1 0 11-2 0 1 1 0 012 0zm8 0a1 1 0 11-2 0 1 1 0 012 0zm-1.8 4.5a.75.75 0 00-1.4.4 3.5 3.5 0 01-6.6 0 .75.75 0 00-1.4.4 5 5 0 009.4 0z" /></svg>`, // ยิ้ม
-            neutral: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-full h-full"><path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zM9 10a1 1 0 11-2 0 1 1 0 012 0zm7 1a1 1 0 100-2 1 1 0 000 2zm-8.25 4.5a.75.75 0 01.75-.75h7a.75.75 0 010 1.5h-7a.75.75 0 01-.75-.75z" clip-rule="evenodd" /></svg>`, // เฉยๆ (ปากตรง)
-            frown: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-full h-full"><path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zM9 10a1 1 0 11-2 0 1 1 0 012 0zm7 1a1 1 0 100-2 1 1 0 000 2zm-.5 4a.75.75 0 00-1.4-.4 3.5 3.5 0 01-6.2 0 .75.75 0 00-1.4.4 5 5 0 009 0z" clip-rule="evenodd" /></svg>`, // บึ้ง
-            sad: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-full h-full"><path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zM9 10a1 1 0 11-2 0 1 1 0 012 0zm7 1a1 1 0 100-2 1 1 0 000 2zm-8.8 4.6a.75.75 0 111.1-1.2 4.5 4.5 0 018.4 0 .75.75 0 01-1.1 1.2 3 3 0 00-5.6 0 .75.75 0 01-1.8 0z" clip-rule="evenodd" /></svg>` // เศร้ามาก
+            // ยิ้ม (ดีมาก/ดี)
+            smile: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-full h-full text-white">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M15.182 15.182a4.5 4.5 0 01-6.364 0M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>`,
+            
+            // เฉยๆ (ปานกลาง) - ปากตรงเป๊ะ
+            neutral: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-full h-full text-white">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 15h6m-3-12a9 9 0 110 18 9 9 0 010-18z" />
+                      </svg>`,
+            
+            // บึ้ง (เริ่มมีผลกระทบ)
+            frown: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-full h-full text-white">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M9 15c.001-.001.002-.002.003-.003a4.5 4.5 0 016.364 0" /> </svg>`,
+            
+            // เศร้ามาก (อันตราย) - ใช้หน้าบึ้งแบบเดียวกันแต่พื้นหลังจะเป็นสีแดง
+            sad: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-full h-full text-white">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                  </svg>` // หรือเปลี่ยนเป็นกากบาทถ้าค่าสูงมาก
         };
+
+        // *แก้ไขเพิ่มเติม* ถ้าต้องการหน้าบึ้งแบบโค้งลง ให้ใช้ SVG นี้แทนตัว sad ด้านบน
+        const sadFace = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-full h-full text-white">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>`;
+        
+        icons.frown = sadFace;
+        icons.sad = sadFace;
 
         function updateDashboard(data) {
             const air = data.air;
