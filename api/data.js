@@ -1,152 +1,158 @@
 module.exports = async (req, res) => {
-    const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSoa90gy2q_JHhquiUHEYcJA_O-JI0ntib_9NG8heNoGv-GEtco9Bv-bWiSib3vrg7E85Dz5H7JnlWO/pub?gid=0&single=true&output=csv'; 
-    
-    // ลองเปลี่ยนมาใช้ Endpoint V2 ที่แอป Air4Thai ใช้ (มักจะเสถียรกว่า)
-    const AIR4THAI_URL = 'http://air4thai.pcd.go.th/forappV2/getAQI_JSON.php';
+    // ตั้งค่า Header ให้รองรับ CORS (กรณีรันคนละโดเมน)
+    res.setHeader('Access-Control-Allow-Credentials', true);
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+    res.setHeader(
+        'Access-Control-Allow-Headers',
+        'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+    );
 
-    let airData = {};
-    let postData = null;
-    let debugMessage = ""; // ตัวแปรเก็บข้อความ Error เพื่อดูสาเหตุ
-
-    // --- 1. Air4Thai (V2 Mobile Endpoint) ---
-    const getAir4Thai = async () => {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 6000); // รอ 6 วินาที
-
-        try {
-            const response = await fetch(AIR4THAI_URL, {
-                headers: { 
-                    'User-Agent': 'okhttp/3.14.9', // ปลอมตัวเป็น Mobile App Android
-                    'Accept': 'application/json'
-                },
-                signal: controller.signal
-            });
-
-            clearTimeout(timeoutId);
-
-            if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
-            
-            const data = await response.json();
-            const stations = data.stations || [];
-
-            // 🎯 ค้นหา ID: bkp97t (สำนักงานเขตหลักสี่)
-            let target = stations.find(s => s.stationID === "bkp97t");
-            
-            // Backup 1: บางเขน (bkp53t)
-            if (!target) target = stations.find(s => s.stationID === "bkp53t");
-            
-            // Backup 2: ค้นหาด้วยชื่อ
-            if (!target) target = stations.find(s => s.nameTH.includes("หลักสี่") || s.nameTH.includes("บางเขน"));
-
-            if (!target) throw new Error('Station Not Found in V2 List');
-
-            // ดึงค่า (V2 โครงสร้างอาจต่างนิดหน่อย แต่ปกติคล้ายเดิม)
-            const getVal = (param) => {
-                if (target.AQI[param] && target.AQI[param] !== "-") return target.AQI[param];
-                if (target.LastUpdate[param] && target.LastUpdate[param].value !== "-") return target.LastUpdate[param].value;
-                return "-";
-            };
-
-            const aqi = target.AQI.aqi !== "-" ? target.AQI.aqi : "-";
-            if (aqi === "-") throw new Error('AQI is empty');
-
-            return {
-                source: 'Air4Thai',
-                aqi: aqi,
-                pm25: getVal('PM25'),
-                pm10: getVal('PM10'),
-                o3: getVal('O3'),
-                status: target.AQI.getLevel ? getStatusFromLevel(target.AQI.getLevel) : "รอข้อมูล",
-                time: (target.date + " " + target.time),
-                location: target.nameTH
-            };
-
-        } catch (error) {
-            clearTimeout(timeoutId);
-            debugMessage = error.message; // เก็บ Error ไว้ดู
-            throw error;
-        }
-    };
-
-    const getStatusFromLevel = (lvl) => {
-        if(lvl == 1) return "คุณภาพดีมาก";
-        if(lvl == 2) return "คุณภาพดี";
-        if(lvl == 3) return "ปานกลาง";
-        if(lvl == 4) return "เริ่มมีผลกระทบ";
-        if(lvl == 5) return "มีผลกระทบต่อสุขภาพ";
-        return "รอข้อมูล";
+    // ถ้าเป็น OPTIONS request ให้จบการทำงานเลย
+    if (req.method === 'OPTIONS') {
+        res.status(200).end();
+        return;
     }
 
-    // --- 2. OpenMeteo (Backup) ---
-    const getBackupAir = async () => {
-        const url = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=13.887&longitude=100.579&current=pm2_5,pm10,ozone,us_aqi&timezone=Asia%2FBangkok`;
-        const response = await fetch(url);
-        const data = await response.json();
-        const aqi = data.current.us_aqi;
-        
-        let status = "ปานกลาง";
-        if (aqi <= 50) status = "คุณภาพดีมาก";
-        else if (aqi <= 100) status = "คุณภาพดี";
-        else if (aqi > 150) status = "เริ่มมีผลกระทบ";
-        else if (aqi > 200) status = "มีผลกระทบ";
+    // ลิงก์ API
+    const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSoa90gy2q_JHhquiUHEYcJA_O-JI0ntib_9NG8heNoGv-GEtco9Bv-bWiSib3vrg7E85Dz5H7JnlWO/pub?gid=0&single=true&output=csv';
+    const AIR4THAI_URL = 'http://air4thai.pcd.go.th/services/getNewAQI_JSON.php?region=1';
+    const OPENMETEO_URL = 'https://air-quality-api.open-meteo.com/v1/air-quality?latitude=13.887&longitude=100.579&current=pm10,ozone&timezone=Asia%2FBangkok';
 
-        return {
-            source: 'OpenMeteo (Backup)',
-            debug_info: `Air4Thai Failed: ${debugMessage}`, // ส่ง Error กลับไปให้เห็นที่หน้าเว็บ
-            aqi: aqi,
-            pm25: data.current.pm2_5,
-            pm10: data.current.pm10,
-            o3: data.current.ozone,
-            status: status,
-            time: data.current.time.replace('T', ' '),
-            location: "หลักสี่ (Backup Data)"
+    // ฟังก์ชันดึงข้อมูล Air4Thai (AQI & PM2.5)
+    const getAirData = async () => {
+        let finalData = {
+            aqi: "-",
+            pm25: "-",
+            pm10: "-",
+            o3: "-",
+            status: "รอข้อมูล",
+            time: "-",
+            location: "เขตหลักสี่ (Hybrid)",
+            source: "Air4Thai + OpenMeteo"
         };
+
+        try {
+            // 1. ดึง Air4Thai
+            const airRes = await fetch(AIR4THAI_URL, { 
+                headers: { 'User-Agent': 'Mozilla/5.0' },
+                signal: AbortSignal.timeout(8000) // รอไม่เกิน 8 วิ
+            });
+            
+            if (airRes.ok) {
+                const data = await airRes.json();
+                const stations = data.stations || data;
+                // หาเขตหลักสี่ (bkp97t)
+                const target = stations.find(s => s.stationID === "bkp97t");
+
+                if (target) {
+                    finalData.location = target.nameTH;
+                    
+                    // เจาะจงข้อมูลที่ AQILast ตาม JSON ที่คุณให้มา
+                    const info = target.AQILast || target.LastUpdate;
+
+                    if (info) {
+                        // วันที่และเวลา
+                        if (info.date && info.time) {
+                            finalData.time = `${info.date} ${info.time}`;
+                        }
+
+                        // PM 2.5
+                        if (info.PM25 && info.PM25.value && info.PM25.value !== "-1") {
+                            finalData.pm25 = info.PM25.value;
+                        }
+
+                        // AQI & Status
+                        if (info.AQI) {
+                            if (info.AQI.aqi && info.AQI.aqi !== "-999") finalData.aqi = info.AQI.aqi;
+                            
+                            // แปลงระดับสีเป็นข้อความ
+                            const lvl = info.AQI.color_id || "0";
+                            const levels = ["", "คุณภาพดีมาก", "คุณภาพดี", "ปานกลาง", "เริ่มมีผลกระทบ", "มีผลกระทบต่อสุขภาพ"];
+                            finalData.status = levels[Number(lvl)] || "ปานกลาง";
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            console.error("Air4Thai Error:", e.message);
+        }
+
+        try {
+            // 2. ดึง OpenMeteo (PM10 & O3)
+            const omRes = await fetch(OPENMETEO_URL, { signal: AbortSignal.timeout(5000) });
+            if (omRes.ok) {
+                const omData = await omRes.json();
+                
+                // เติมค่าที่ขาด
+                finalData.pm10 = omData.current.pm10;
+                finalData.o3 = omData.current.ozone;
+
+                // ถ้า Air4Thai ล่ม ไม่มีเวลา ให้ใช้เวลาจาก OpenMeteo แทน
+                if (finalData.time === "-") {
+                    finalData.time = omData.current.time.replace('T', ' ');
+                }
+            }
+        } catch (e) {
+            console.error("OpenMeteo Error:", e.message);
+        }
+
+        return finalData;
     };
 
-    // --- 3. Sheet Data ---
+    // ฟังก์ชันดึงประกาศจาก Google Sheet (CSV)
     const getSheetData = async () => {
         try {
-            const sheetRes = await fetch(SHEET_CSV_URL);
-            const sheetText = await sheetRes.text();
-            // ... (Logic ตัดคำเดิม) ...
-             const rows = sheetText.split(/\r?\n/);
+            // ใส่ ?t=... กัน Cache
+            const res = await fetch(SHEET_CSV_URL + '&t=' + new Date().getTime());
+            const text = await res.text();
+            
+            // แปลง CSV แบบง่ายๆ
+            const rows = text.split(/\r?\n/).filter(row => row.trim() !== "");
+            
+            // อ่านบรรทัดสุดท้าย
             if (rows.length > 1) {
-                let lastRowStr = rows[rows.length - 1];
-                if (!lastRowStr || lastRowStr.trim() === '') lastRowStr = rows[rows.length - 2];
-                if (lastRowStr) {
-                    const columns = [];
-                    let inQuotes = false; let currentVal = '';
-                    for (let char of lastRowStr) {
-                        if (char === '"') { inQuotes = !inQuotes; }
-                        else if (char === ',' && !inQuotes) { columns.push(currentVal); currentVal = ''; }
-                        else { currentVal += char; }
-                    }
-                    columns.push(currentVal);
-                    const clean = (str) => str ? str.trim().replace(/^"|"$/g, '').replace(/""/g, '"') : '';
-                    if(columns.length >= 3) {
+                const lastRowStr = rows[rows.length - 1];
+                
+                // Regex แยกคอลัมน์โดยไม่สนเครื่องหมาย , ใน quote ""
+                const matches = lastRowStr.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+                
+                if (matches) {
+                     const cols = matches.map(c => c.replace(/^"|"$/g, '').trim()); // ลบ quote ออก
+                     
+                     // ตรวจสอบว่ามีข้อมูลครบไหม (Timestamp, Type, Title, URL)
+                     if(cols.length >= 3) {
                         return {
-                            timestamp: clean(columns[0]),
-                            type: clean(columns[1]),
-                            title: clean(columns[2]) || 'ประกาศ',
-                            fileUrl: clean(columns[3]) || '#'
+                            timestamp: cols[0] || '',
+                            type: cols[1] || 'text',
+                            title: cols[2] || 'ประกาศ',
+                            fileUrl: cols[3] || '#'
+                        };
+                     }
+                } else {
+                    // Fallback ถ้า Regex ไม่เจอ (กรณี CSV ธรรมดา)
+                    const simpleCols = lastRowStr.split(',');
+                    if(simpleCols.length >= 3) {
+                         return {
+                            timestamp: simpleCols[0],
+                            type: simpleCols[1],
+                            title: simpleCols[2],
+                            fileUrl: simpleCols[3] || '#'
                         };
                     }
                 }
             }
-        } catch (e) { }
+        } catch (e) {
+            console.error("Sheet Error:", e.message);
+        }
         return null;
     };
 
     try {
-        try { 
-            airData = await getAir4Thai(); 
-        } catch (e) { 
-            console.log("Air4Thai Error:", e.message);
-            try { airData = await getBackupAir(); }
-            catch (bkError) { airData = { error: "Unavailable" }; }
-        }
-
-        postData = await getSheetData();
+        // ทำงานพร้อมกัน (Parallel) เพื่อความไว
+        const [airData, postData] = await Promise.all([getAirData(), getSheetData()]);
+        
+        // ส่งผลลัพธ์กลับ
         res.status(200).json({ air: airData, post: postData });
 
     } catch (criticalError) {
