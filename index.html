@@ -6,68 +6,94 @@
     <title>PM 2.5 หลักสี่</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
-    <style>body { font-family: 'Kanit', sans-serif; }</style>
+    <style>
+        body { font-family: 'Kanit', sans-serif; }
+        .fade-in { animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
 </head>
-<body class="bg-gray-100 min-h-screen p-4 flex flex-col items-center">
+<body class="bg-gray-100 min-h-screen p-4 flex flex-col items-center justify-center">
 
     <div class="w-full max-w-md">
-        <h1 class="text-2xl font-bold text-center text-gray-700 mb-6">สถานการณ์ฝุ่น PM 2.5 <br><span class="text-sm font-normal">เขตหลักสี่ กรุงเทพฯ</span></h1>
+        <h1 class="text-2xl font-bold text-center text-gray-700 mb-2">สถานการณ์ฝุ่น PM 2.5</h1>
+        <h2 class="text-md font-normal text-center text-gray-500 mb-6" id="location-name">เขตหลักสี่ กรุงเทพมหานคร</h2>
 
-        <div id="aqi-card" class="bg-white rounded-3xl shadow-lg p-6 mb-6 text-center border-t-8 border-gray-300 transition-colors duration-500">
-            <div id="loading" class="text-gray-400 animate-pulse">กำลังโหลดข้อมูล...</div>
-            <div id="content" class="hidden">
-                <div class="text-6xl font-bold text-gray-800 mb-2" id="aqi">--</div>
-                <div class="text-lg font-medium text-gray-600">AQI</div>
-                <div id="status" class="inline-block px-3 py-1 rounded-full text-white text-sm font-bold mt-2 bg-gray-400">--</div>
+        <div id="aqi-card" class="bg-white rounded-3xl shadow-lg p-8 mb-6 text-center border-t-8 border-gray-300 transition-colors duration-500 relative overflow-hidden">
+            
+            <div id="loading" class="text-gray-400 animate-pulse py-10">กำลังโหลดข้อมูล...</div>
+            
+            <div id="content" class="hidden fade-in">
+                <div class="text-7xl font-bold text-gray-800 mb-1" id="pm25">--</div>
+                <div class="text-lg font-medium text-gray-500">µg/m³ (PM 2.5)</div>
+
+                <div id="status" class="inline-block px-4 py-1 rounded-full text-white text-md font-bold mt-4 bg-gray-400 shadow-sm">
+                    รอข้อมูล
+                </div>
                 
-                <div class="flex justify-between mt-6 pt-4 border-t">
+                <div class="flex justify-between mt-8 pt-6 border-t border-gray-100">
                     <div class="text-left">
-                        <span class="text-xs text-gray-500">PM 2.5</span><br>
-                        <span class="text-xl font-bold" id="pm25">--</span> µg/m³
+                        <span class="text-xs text-gray-400 uppercase tracking-wide">ดัชนีคุณภาพ (AQI)</span><br>
+                        <span class="text-2xl font-bold text-gray-700" id="aqi">--</span>
                     </div>
                     <div class="text-right">
-                        <span class="text-xs text-gray-500">อัปเดตเมื่อ</span><br>
-                        <span class="text-xs font-bold" id="time">--</span>
+                        <span class="text-xs text-gray-400 uppercase tracking-wide">อัปเดตเมื่อ</span><br>
+                        <span class="text-sm font-bold text-gray-600" id="time">--:--</span>
                     </div>
                 </div>
+
+                <div class="mt-4 text-xs text-gray-300" id="source-ref">Source: --</div>
             </div>
         </div>
 
-        <div id="post-card" class="bg-white rounded-2xl shadow-md overflow-hidden hidden">
-            <div class="bg-blue-600 text-white px-4 py-2 text-sm font-bold">📢 ประกาศล่าสุด</div>
+        <div id="post-card" class="bg-white rounded-2xl shadow-md overflow-hidden hidden fade-in mb-10">
+            <div class="bg-blue-600 text-white px-4 py-2 text-sm font-bold flex items-center">
+                <span class="mr-2">📢</span> ประกาศล่าสุด
+            </div>
             <img id="post-img" class="w-full h-48 object-cover hidden">
-            <div class="p-4">
-                <h3 id="post-title" class="font-bold text-lg text-gray-800 mb-2"></h3>
-                <a id="post-link" href="#" target="_blank" class="block w-full bg-gray-100 hover:bg-gray-200 text-center py-2 rounded text-blue-600 font-semibold transition">
-                    เปิดดูรายละเอียด
+            <div class="p-5">
+                <div class="text-xs text-gray-400 mb-1" id="post-date">--/--/----</div>
+                <h3 id="post-title" class="font-bold text-lg text-gray-800 mb-3 leading-snug"></h3>
+                <a id="post-link" href="#" target="_blank" class="block w-full bg-blue-50 hover:bg-blue-100 text-center py-2.5 rounded-lg text-blue-600 font-semibold transition border border-blue-200">
+                    ดูรายละเอียด / ไฟล์แนบ
                 </a>
             </div>
         </div>
     </div>
 
     <script>
-        // เรียกใช้ API ของตัวเราเอง (ที่สร้างใน api/data.js)
         fetch('/api/data')
             .then(res => res.json())
             .then(data => {
-                // 1. แสดงผลค่าฝุ่น
+                // 1. ส่วนแสดงผลฝุ่น (Air)
                 if (data.air && !data.air.error) {
                     document.getElementById('loading').classList.add('hidden');
                     document.getElementById('content').classList.remove('hidden');
                     
-                    document.getElementById('aqi').innerText = data.air.aqi;
+                    // ใส่ค่า PM 2.5 (ตัวใหญ่)
                     document.getElementById('pm25').innerText = data.air.pm25;
+                    // ใส่ค่า AQI (ตัวเล็ก)
+                    document.getElementById('aqi').innerText = data.air.aqi;
+                    
                     document.getElementById('status').innerText = data.air.status;
                     document.getElementById('time').innerText = data.air.time;
+                    document.getElementById('location-name').innerText = data.air.location || "เขตหลักสี่";
                     
+                    // เปลี่ยนสีตามค่าที่ได้
                     document.getElementById('status').style.backgroundColor = data.air.color;
                     document.getElementById('aqi-card').style.borderColor = data.air.color;
+
+                    if(data.air.source) {
+                        document.getElementById('source-ref').innerText = "Source: " + data.air.source;
+                    }
+                } else {
+                    document.getElementById('loading').innerText = "ไม่สามารถดึงข้อมูลได้";
                 }
 
-                // 2. แสดงผลประกาศ
+                // 2. ส่วนแสดงผลประกาศ (Post)
                 if (data.post) {
                     document.getElementById('post-card').classList.remove('hidden');
                     document.getElementById('post-title').innerText = data.post.title;
+                    document.getElementById('post-date').innerText = data.post.timestamp;
                     document.getElementById('post-link').href = data.post.fileUrl;
 
                     if (data.post.type && data.post.type.trim() === 'image') {
@@ -75,10 +101,14 @@
                         img.src = data.post.fileUrl;
                         img.classList.remove('hidden');
                     }
+                } else {
+                    // ถ้าไม่มีประกาศ (post เป็น null)
+                    console.log("No post data found. Check Google Sheet CSV Link.");
                 }
             })
             .catch(err => {
-                document.getElementById('loading').innerText = "โหลดข้อมูลไม่สำเร็จ";
+                console.error(err);
+                document.getElementById('loading').innerText = "Connection Error";
             });
     </script>
 </body>
