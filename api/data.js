@@ -3,7 +3,7 @@ module.exports = async (req, res) => {
   // -------------------------------------------------------
   // 1. ใส่ลิงก์ CSV ของคุณตรงนี้ (อย่าลืมเปลี่ยนนะครับ!)
   // -------------------------------------------------------
-  const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-xxxxxx/pub?gid=0&single=true&output=csv'; 
+  const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSoa90gy2q_JHhquiUHEYcJA_O-JI0ntib_9NG8heNoGv-GEtco9Bv-bWiSib3vrg7E85Dz5H7JnlWO/pub?gid=0&single=true&output=csv'; 
 
   // เตรียมตัวแปรเก็บข้อมูล
   let airData = { error: "กำลังโหลด..." };
@@ -86,3 +86,4 @@ module.exports = async (req, res) => {
     res.status(500).json({ error: criticalError.message });
   }
 };
+
