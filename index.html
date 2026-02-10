@@ -105,93 +105,83 @@
     </div>
 
     <script>
-        // แก้ไข 2: เพิ่มความหนาเส้น (stroke-width) เป็น 2.5 เพื่อให้ตาชัดขึ้น
+        // ไอคอน SVG
         const icons = {
-            // 😄 ยิ้ม
-            smile: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-full h-full text-white">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>`,
-            
-            // 😐 เฉยๆ
-            neutral: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-full h-full text-white">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 15h6M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>`,
-            
-            // ☹️ หน้าบึ้ง
-            frown: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-full h-full text-white">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>`,
-
-             // 😫 หน้าแย่สุดๆ (สามเหลี่ยม)
-            sad: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-full h-full text-white">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>`
+            smile: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-full h-full text-white"><path stroke-linecap="round" stroke-linejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`,
+            neutral: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-full h-full text-white"><path stroke-linecap="round" stroke-linejoin="round" d="M9 15h6M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`,
+            frown: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-full h-full text-white"><path stroke-linecap="round" stroke-linejoin="round" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`,
+            sad: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-full h-full text-white"><path stroke-linecap="round" stroke-linejoin="round" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`
         };
 
-        // ใช้หน้าบึ้งแทนสามเหลี่ยมสำหรับสีแดง (ตามความชอบเดิม)
-        const sadFace = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-full h-full text-white">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>`;
-        icons.frown = sadFace;
-        icons.sad = sadFace;
-
         function updateDashboard(data) {
+            console.log("Received Data:", data); // Debug ดูข้อมูลใน Console
+
+            // 1. ตรวจสอบข้อมูลก่อนใช้งาน
+            if (!data) throw new Error("ไม่ได้รับข้อมูล (Data is null)");
+            
             const air = data.air;
             const post = data.post;
+            
+            // Elements
             const aqiCard = document.getElementById('aqi-card');
             const loading = document.getElementById('loading');
             const content = document.getElementById('content');
             const paramsCard = document.getElementById('params-card');
 
+            // 2. อัปเดตส่วน AQI
             if (air && !air.error) {
                 loading.classList.add('hidden');
                 content.classList.remove('hidden');
                 paramsCard.classList.remove('hidden');
 
-                document.getElementById('aqi').innerText = air.aqi;
-                document.getElementById('status').innerText = air.status;
-                document.getElementById('time').innerText = air.time;
-                document.getElementById('location-name').innerText = air.location;
-                document.getElementById('source-ref').innerText = "Source: " + air.source;
+                document.getElementById('aqi').innerText = air.aqi || '-';
+                document.getElementById('status').innerText = air.status || 'รอข้อมูล';
+                document.getElementById('time').innerText = air.time || '-';
+                document.getElementById('location-name').innerText = air.location || 'เขตหลักสี่';
+                document.getElementById('source-ref').innerText = "Source: " + (air.source || 'N/A');
 
-                document.getElementById('pm25').innerText = air.pm25;
-                document.getElementById('pm10').innerText = air.pm10;
-                document.getElementById('o3').innerText = air.o3;
+                document.getElementById('pm25').innerText = air.pm25 || '-';
+                document.getElementById('pm10').innerText = air.pm10 || '-';
+                document.getElementById('o3').innerText = air.o3 || '-';
 
+                // เปลี่ยนสีและไอคอน
                 let bgClass = 'bg-gray-400';
                 let iconHtml = icons.neutral;
                 const aqiVal = parseInt(air.aqi);
 
-                if (aqiVal <= 25) { bgClass = 'bg-aqi-blue'; iconHtml = icons.smile; }
-                else if (aqiVal <= 50) { bgClass = 'bg-aqi-green'; iconHtml = icons.smile; }
-                else if (aqiVal <= 100) { bgClass = 'bg-aqi-yellow'; iconHtml = icons.neutral; }
-                else if (aqiVal <= 200) { bgClass = 'bg-aqi-orange'; iconHtml = icons.frown; }
-                else { bgClass = 'bg-aqi-red'; iconHtml = icons.sad; }
+                if (!isNaN(aqiVal)) {
+                    if (aqiVal <= 25) { bgClass = 'bg-aqi-blue'; iconHtml = icons.smile; }
+                    else if (aqiVal <= 50) { bgClass = 'bg-aqi-green'; iconHtml = icons.smile; }
+                    else if (aqiVal <= 100) { bgClass = 'bg-aqi-yellow'; iconHtml = icons.neutral; }
+                    else if (aqiVal <= 200) { bgClass = 'bg-aqi-orange'; iconHtml = icons.frown; }
+                    else { bgClass = 'bg-aqi-red'; iconHtml = icons.sad; }
+                }
 
                 aqiCard.classList.remove('bg-gray-300', 'bg-aqi-blue', 'bg-aqi-green', 'bg-aqi-yellow', 'bg-aqi-orange', 'bg-aqi-red');
                 aqiCard.classList.add(bgClass);
                 document.getElementById('aqi-icon').innerHTML = iconHtml;
 
             } else {
-                loading.innerText = "ไม่สามารถดึงข้อมูลได้";
+                loading.innerText = "ไม่พบข้อมูลสภาพอากาศ";
+                console.error("Air Data Error:", air);
             }
 
+            // 3. อัปเดตส่วนประกาศ (Post)
             if (post) {
                 const postCard = document.getElementById('post-card');
                 postCard.classList.remove('hidden');
-                document.getElementById('post-title').innerText = post.title;
-                document.getElementById('post-date').innerText = post.timestamp;
-                document.getElementById('post-link').href = post.fileUrl;
+                document.getElementById('post-title').innerText = post.title || 'ประกาศ';
+                document.getElementById('post-date').innerText = post.timestamp || '';
+                document.getElementById('post-link').href = post.fileUrl || '#';
 
-                // ส่วนจัดการรูปภาพ
-                if (post.type && post.type.trim() === 'image') {
-                    const img = document.getElementById('post-img');
+                const img = document.getElementById('post-img');
+                
+                if (post.type && post.type.trim() === 'image' && post.fileUrl) {
                     let finalUrl = post.fileUrl;
 
-                    // แก้ไข 1: ปรับปรุงการแปลงลิงก์ Google Drive ให้เสถียรขึ้น (ใช้แบบ thumbnail)
+                    // แปลงลิงก์ Google Drive
                     if (finalUrl.includes('drive.google.com')) {
                         let fileId = null;
-                        // รองรับทั้งแบบ /d/ID และ id=ID
                         if (finalUrl.includes('/d/')) {
                             const match = finalUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
                             if (match) fileId = match[1];
@@ -199,8 +189,6 @@
                             const match = finalUrl.match(/id=([a-zA-Z0-9_-]+)/);
                             if (match) fileId = match[1];
                         }
-
-                        // ถ้าเจอ ID ให้ใช้ลิงก์ thumbnail ความละเอียดสูง
                         if (fileId) {
                             finalUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000`;
                         }
@@ -208,23 +196,32 @@
 
                     img.src = finalUrl;
                     img.classList.remove('hidden');
-                    
-                    img.onerror = function() {
-                        this.classList.add('hidden');
-                        console.log("❌ โหลดรูปภาพไม่สำเร็จ: " + finalUrl);
+                    img.onerror = function() { 
+                        this.classList.add('hidden'); 
+                        console.warn("โหลดรูปไม่สำเร็จ:", finalUrl);
                     };
-
                 } else {
-                    document.getElementById('post-img').classList.add('hidden');
+                    img.classList.add('hidden');
                 }
             }
         }
 
-        // ดึงข้อมูล (ใช้ ?t=... เพื่อป้องกัน Cache)
-        fetch('./data.json?t=' + new Date().getTime())
-            .then(res => res.json())
+        // --- ส่วนสำคัญ: เรียกข้อมูล API ---
+        // ใช้ /api/data แทน ./data.json เพื่อวิ่งไปหา data.js ที่เป็น Backend
+        fetch('/api/data') 
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP Error! status: ${response.status}`);
+                return response.json();
+            })
             .then(data => updateDashboard(data))
-            .catch(err => console.error(err));
+            .catch(err => {
+                console.error("Fetch Error:", err);
+                // แสดง Error บนหน้าจอแทนการค้าง
+                document.getElementById('loading').innerText = "เชื่อมต่อ API ไม่ได้";
+                document.getElementById('loading').classList.remove('animate-pulse');
+                document.getElementById('loading').classList.add('text-red-500');
+            });
     </script>
 </body>
 </html>
+
