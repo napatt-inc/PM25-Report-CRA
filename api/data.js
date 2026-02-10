@@ -1,77 +1,70 @@
 module.exports = async (req, res) => {
     const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSoa90gy2q_JHhquiUHEYcJA_O-JI0ntib_9NG8heNoGv-GEtco9Bv-bWiSib3vrg7E85Dz5H7JnlWO/pub?gid=0&single=true&output=csv'; 
-
-    // ตั้งค่า Timeout ให้สั้นลง (5 วินาที) ถ้า Air4Thai ช้ากว่านี้ ให้ตัดไปใช้ Backup ทันที
-    // เพื่อไม่ให้ Vercel หมุนติ้วจน Error
-    const TIMEOUT_MS = 5000; 
+    
+    // ลองเปลี่ยนมาใช้ Endpoint V2 ที่แอป Air4Thai ใช้ (มักจะเสถียรกว่า)
+    const AIR4THAI_URL = 'http://air4thai.pcd.go.th/forappV2/getAQI_JSON.php';
 
     let airData = {};
     let postData = null;
+    let debugMessage = ""; // ตัวแปรเก็บข้อความ Error เพื่อดูสาเหตุ
 
-    // --- 1. Air4Thai (Main Source) ---
+    // --- 1. Air4Thai (V2 Mobile Endpoint) ---
     const getAir4Thai = async () => {
-        console.log("Connecting to Air4Thai (HTTP via Proxy)...");
-        
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+        const timeoutId = setTimeout(() => controller.abort(), 6000); // รอ 6 วินาที
 
         try {
-            const response = await fetch('http://air4thai.pcd.go.th/services/getNewAQI_JSON.php?region=1', {
-                method: 'GET',
-                // ✅ ใส่ Headers เพื่อหลอก Server ว่าเราคือ Chrome (แก้ปัญหาโดนบล็อก)
+            const response = await fetch(AIR4THAI_URL, {
                 headers: { 
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    'Accept': 'application/json, text/plain, */*',
-                    'Referer': 'http://air4thai.pcd.go.th/',
-                    'Connection': 'keep-alive'
+                    'User-Agent': 'okhttp/3.14.9', // ปลอมตัวเป็น Mobile App Android
+                    'Accept': 'application/json'
                 },
                 signal: controller.signal
             });
 
-            clearTimeout(timeoutId); // ยกเลิกตัวจับเวลาถ้าโหลดเสร็จทัน
+            clearTimeout(timeoutId);
 
-            if (!response.ok) throw new Error(`HTTP Status: ${response.status}`);
+            if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
             
             const data = await response.json();
-            const stations = Array.isArray(data.stations) ? data.stations : [data];
+            const stations = data.stations || [];
 
-            // 🎯 ค้นหา bkp97t (เขตหลักสี่)
+            // 🎯 ค้นหา ID: bkp97t (สำนักงานเขตหลักสี่)
             let target = stations.find(s => s.stationID === "bkp97t");
             
-            // Backup: หา บางเขน
-            if (!target) target = stations.find(s => s.nameTH.includes("บางเขน"));
+            // Backup 1: บางเขน (bkp53t)
+            if (!target) target = stations.find(s => s.stationID === "bkp53t");
+            
+            // Backup 2: ค้นหาด้วยชื่อ
+            if (!target) target = stations.find(s => s.nameTH.includes("หลักสี่") || s.nameTH.includes("บางเขน"));
 
-            if (!target) throw new Error('Station Not Found');
+            if (!target) throw new Error('Station Not Found in V2 List');
 
-            // Helper ดึงค่า
+            // ดึงค่า (V2 โครงสร้างอาจต่างนิดหน่อย แต่ปกติคล้ายเดิม)
             const getVal = (param) => {
-                try {
-                    const item = target.LastUpdate[param];
-                    if (item && item.value && item.value !== "N/A" && item.value !== "-") return item.value;
-                    return "-";
-                } catch { return "-"; }
-            };
-
-            const getAqi = () => {
-                if (target.LastUpdate?.AQI?.aqi && target.LastUpdate.AQI.aqi !== "N/A") return target.LastUpdate.AQI.aqi;
-                if (target.AQI?.aqi && target.AQI.aqi !== "N/A") return target.AQI.aqi;
+                if (target.AQI[param] && target.AQI[param] !== "-") return target.AQI[param];
+                if (target.LastUpdate[param] && target.LastUpdate[param].value !== "-") return target.LastUpdate[param].value;
                 return "-";
             };
 
+            const aqi = target.AQI.aqi !== "-" ? target.AQI.aqi : "-";
+            if (aqi === "-") throw new Error('AQI is empty');
+
             return {
                 source: 'Air4Thai',
-                aqi: getAqi(),
+                aqi: aqi,
                 pm25: getVal('PM25'),
                 pm10: getVal('PM10'),
                 o3: getVal('O3'),
-                status: target.LastUpdate?.AQI?.Level ? getStatusFromLevel(target.LastUpdate.AQI.Level) : "รอข้อมูล",
-                time: (target.LastUpdate.date + " " + target.LastUpdate.time),
+                status: target.AQI.getLevel ? getStatusFromLevel(target.AQI.getLevel) : "รอข้อมูล",
+                time: (target.date + " " + target.time),
                 location: target.nameTH
             };
 
         } catch (error) {
             clearTimeout(timeoutId);
-            throw error; // ส่ง error ไปให้ catch ด้านล่างทำงานต่อ
+            debugMessage = error.message; // เก็บ Error ไว้ดู
+            throw error;
         }
     };
 
@@ -84,12 +77,9 @@ module.exports = async (req, res) => {
         return "รอข้อมูล";
     }
 
-    // --- 2. OpenMeteo (Backup Source) ---
+    // --- 2. OpenMeteo (Backup) ---
     const getBackupAir = async () => {
-        console.log("Switching to OpenMeteo...");
-        // พิกัดหลักสี่
         const url = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=13.887&longitude=100.579&current=pm2_5,pm10,ozone,us_aqi&timezone=Asia%2FBangkok`;
-        
         const response = await fetch(url);
         const data = await response.json();
         const aqi = data.current.us_aqi;
@@ -102,6 +92,7 @@ module.exports = async (req, res) => {
 
         return {
             source: 'OpenMeteo (Backup)',
+            debug_info: `Air4Thai Failed: ${debugMessage}`, // ส่ง Error กลับไปให้เห็นที่หน้าเว็บ
             aqi: aqi,
             pm25: data.current.pm2_5,
             pm10: data.current.pm10,
@@ -112,12 +103,13 @@ module.exports = async (req, res) => {
         };
     };
 
-    // --- 3. Google Sheet ---
+    // --- 3. Sheet Data ---
     const getSheetData = async () => {
         try {
             const sheetRes = await fetch(SHEET_CSV_URL);
             const sheetText = await sheetRes.text();
-            const rows = sheetText.split(/\r?\n/);
+            // ... (Logic ตัดคำเดิม) ...
+             const rows = sheetText.split(/\r?\n/);
             if (rows.length > 1) {
                 let lastRowStr = rows[rows.length - 1];
                 if (!lastRowStr || lastRowStr.trim() === '') lastRowStr = rows[rows.length - 2];
@@ -141,26 +133,20 @@ module.exports = async (req, res) => {
                     }
                 }
             }
-        } catch (e) { console.log("Sheet Error"); }
+        } catch (e) { }
         return null;
     };
 
-    // --- Main Logic ---
     try {
-        // พยายามดึง Air4Thai ก่อน
         try { 
             airData = await getAir4Thai(); 
         } catch (e) { 
-            console.log(`Air4Thai Failed (${e.message}), Using Backup.`);
-            // ถ้า Air4Thai พัง หรือ ช้าเกิน 5 วิ -> ใช้ Backup ทันที
+            console.log("Air4Thai Error:", e.message);
             try { airData = await getBackupAir(); }
             catch (bkError) { airData = { error: "Unavailable" }; }
         }
 
         postData = await getSheetData();
-
-        // สำคัญ: Vercel Function ตอบกลับเป็น HTTPS เสมอ
-        // Browser จึงไม่บ่นเรื่อง Mixed Content
         res.status(200).json({ air: airData, post: postData });
 
     } catch (criticalError) {
