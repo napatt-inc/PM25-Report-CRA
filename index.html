@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PM 2.5 หลักสี่</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Kanit', sans-serif; }</style>
+</head>
+<body class="bg-gray-100 min-h-screen p-4 flex flex-col items-center">
+
+    <div class="w-full max-w-md">
+        <h1 class="text-2xl font-bold text-center text-gray-700 mb-6">สถานการณ์ฝุ่น PM 2.5 <br><span class="text-sm font-normal">เขตหลักสี่ กรุงเทพฯ</span></h1>
+
+        <div id="aqi-card" class="bg-white rounded-3xl shadow-lg p-6 mb-6 text-center border-t-8 border-gray-300 transition-colors duration-500">
+            <div id="loading" class="text-gray-400 animate-pulse">กำลังโหลดข้อมูล...</div>
+            <div id="content" class="hidden">
+                <div class="text-6xl font-bold text-gray-800 mb-2" id="aqi">--</div>
+                <div class="text-lg font-medium text-gray-600">AQI</div>
+                <div id="status" class="inline-block px-3 py-1 rounded-full text-white text-sm font-bold mt-2 bg-gray-400">--</div>
+                
+                <div class="flex justify-between mt-6 pt-4 border-t">
+                    <div class="text-left">
+                        <span class="text-xs text-gray-500">PM 2.5</span><br>
+                        <span class="text-xl font-bold" id="pm25">--</span> µg/m³
+                    </div>
+                    <div class="text-right">
+                        <span class="text-xs text-gray-500">อัปเดตเมื่อ</span><br>
+                        <span class="text-xs font-bold" id="time">--</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="post-card" class="bg-white rounded-2xl shadow-md overflow-hidden hidden">
+            <div class="bg-blue-600 text-white px-4 py-2 text-sm font-bold">📢 ประกาศล่าสุด</div>
+            <img id="post-img" class="w-full h-48 object-cover hidden">
+            <div class="p-4">
+                <h3 id="post-title" class="font-bold text-lg text-gray-800 mb-2"></h3>
+                <a id="post-link" href="#" target="_blank" class="block w-full bg-gray-100 hover:bg-gray-200 text-center py-2 rounded text-blue-600 font-semibold transition">
+                    เปิดดูรายละเอียด
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // เรียกใช้ API ของตัวเราเอง (ที่สร้างใน api/data.js)
+        fetch('/api/data')
+            .then(res => res.json())
+            .then(data => {
+                // 1. แสดงผลค่าฝุ่น
+                if (data.air && !data.air.error) {
+                    document.getElementById('loading').classList.add('hidden');
+                    document.getElementById('content').classList.remove('hidden');
+                    
+                    document.getElementById('aqi').innerText = data.air.aqi;
+                    document.getElementById('pm25').innerText = data.air.pm25;
+                    document.getElementById('status').innerText = data.air.status;
+                    document.getElementById('time').innerText = data.air.time;
+                    
+                    document.getElementById('status').style.backgroundColor = data.air.color;
+                    document.getElementById('aqi-card').style.borderColor = data.air.color;
+                }
+
+                // 2. แสดงผลประกาศ
+                if (data.post) {
+                    document.getElementById('post-card').classList.remove('hidden');
+                    document.getElementById('post-title').innerText = data.post.title;
+                    document.getElementById('post-link').href = data.post.fileUrl;
+
+                    if (data.post.type && data.post.type.trim() === 'image') {
+                        const img = document.getElementById('post-img');
+                        img.src = data.post.fileUrl;
+                        img.classList.remove('hidden');
+                    }
+                }
+            })
+            .catch(err => {
+                document.getElementById('loading').innerText = "โหลดข้อมูลไม่สำเร็จ";
+            });
+    </script>
+</body>
+</html>
