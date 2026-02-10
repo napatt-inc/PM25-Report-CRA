@@ -72,7 +72,7 @@ module.exports = async (req, res) => {
             if (target) {
                 const info = target.AQILast || target.LastUpdate;
                 return {
-                    source: 'Air4Thai (กรมวิทย์ฯ)',
+                    source: 'Air4Thai (กรมควบคุมมลพิษ)',
                     location: target.nameTH,
                     time: `${info.date} ${info.time}`,
                     pm25: info.PM25.value,
@@ -187,3 +187,4 @@ module.exports = async (req, res) => {
         res.status(500).json({ error: criticalError.message });
     }
 };
+
