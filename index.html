@@ -36,10 +36,12 @@
                 <div id="content" class="hidden fade-in flex flex-col items-center justify-center w-full h-full pt-1">
                     
                     <div id="aqi-icon" class="w-24 h-24 mb-0 flex items-center justify-center">
-                        </div>
+                    </div>
 
-                    <div class="text-7xl font-bold leading-none tracking-normal drop-shadow-md mt-1" id="aqi">--</div>
-                    <div class="text-xl font-medium uppercase tracking-widest opacity-90 mb-2">AQI</div>
+                    <div class="text-7xl font-bold leading-none tracking-normal drop-shadow-md mt-1" id="main-pm25">--</div>
+                    <div class="text-lg font-medium uppercase tracking-widest opacity-90 mb-2">
+                        PM 2.5 <span class="text-xs normal-case opacity-75">µg/m³</span>
+                    </div>
 
                     <div id="status" class="px-4 py-1 bg-white/25 rounded-full text-lg font-bold backdrop-blur-sm shadow-sm border border-white/20">
                         รอข้อมูล
@@ -62,9 +64,9 @@
             
             <div class="grid grid-cols-3 gap-2 text-center divide-x divide-slate-100">
                 <div>
-                    <span class="text-xs font-semibold text-slate-400 uppercase">PM 2.5</span>
-                    <div class="text-2xl font-bold text-slate-800 my-1" id="pm25">--</div>
-                    <span class="text-[10px] text-slate-400">µg/m³</span>
+                    <span class="text-xs font-semibold text-slate-400 uppercase">AQI</span>
+                    <div class="text-2xl font-bold text-slate-800 my-1" id="param-aqi">--</div>
+                    <span class="text-[10px] text-slate-400">-</span>
                 </div>
                 <div>
                     <span class="text-xs font-semibold text-slate-400 uppercase">PM 10</span>
@@ -79,13 +81,24 @@
             </div>
         </div>
 
-        <div class="h-2 rounded-full flex w-full overflow-hidden mb-8 shadow-sm">
-             <div class="flex-1 bg-[#4FC3F7]"></div>
-             <div class="flex-1 bg-[#81C784]"></div>
-             <div class="flex-1 bg-[#FFF176]"></div>
-             <div class="flex-1 bg-[#FFB74D]"></div>
-             <div class="flex-1 bg-[#E57373]"></div>
+        <div class="mb-8 w-full">
+            <div class="h-3 rounded-full flex w-full overflow-hidden shadow-sm mb-2">
+                <div class="flex-1 bg-[#4FC3F7]"></div>
+                <div class="flex-1 bg-[#81C784]"></div>
+                <div class="flex-1 bg-[#FFF176]"></div>
+                <div class="flex-1 bg-[#FFB74D]"></div>
+                <div class="flex-1 bg-[#E57373]"></div>
+            </div>
+            
+            <div class="flex justify-between w-full text-[10px] text-slate-300 font-medium">
+                <div id="lvl-0" class="flex-1 text-center transition-all duration-300">ดีมาก</div>
+                <div id="lvl-1" class="flex-1 text-center transition-all duration-300">ดี</div>
+                <div id="lvl-2" class="flex-1 text-center transition-all duration-300">ปานกลาง</div>
+                <div id="lvl-3" class="flex-1 text-center transition-all duration-300">เริ่มมีผลฯ</div>
+                <div id="lvl-4" class="flex-1 text-center transition-all duration-300">อันตราย</div>
+            </div>
         </div>
+
 
         <div id="post-card" class="bg-white rounded-2xl shadow-lg overflow-hidden hidden fade-in w-full border border-slate-100">
              <div class="bg-slate-800 text-white px-4 py-3 text-sm font-bold flex items-center">
@@ -105,7 +118,6 @@
     </div>
 
     <script>
-        // ไอคอน SVG
         const icons = {
             smile: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-full h-full text-white"><path stroke-linecap="round" stroke-linejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`,
             neutral: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-full h-full text-white"><path stroke-linecap="round" stroke-linejoin="round" d="M9 15h6M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`,
@@ -114,47 +126,68 @@
         };
 
         function updateDashboard(data) {
-            console.log("Received Data:", data); // Debug ดูข้อมูลใน Console
+            console.log("Received Data:", data);
 
-            // 1. ตรวจสอบข้อมูลก่อนใช้งาน
             if (!data) throw new Error("ไม่ได้รับข้อมูล (Data is null)");
             
             const air = data.air;
             const post = data.post;
             
-            // Elements
             const aqiCard = document.getElementById('aqi-card');
             const loading = document.getElementById('loading');
             const content = document.getElementById('content');
             const paramsCard = document.getElementById('params-card');
 
-            // 2. อัปเดตส่วน AQI
             if (air && !air.error) {
                 loading.classList.add('hidden');
                 content.classList.remove('hidden');
                 paramsCard.classList.remove('hidden');
 
-                document.getElementById('aqi').innerText = air.aqi || '-';
+                document.getElementById('main-pm25').innerText = air.pm25 || '-';
                 document.getElementById('status').innerText = air.status || 'รอข้อมูล';
                 document.getElementById('time').innerText = air.time || '-';
                 document.getElementById('location-name').innerText = air.location || 'เขตหลักสี่';
                 document.getElementById('source-ref').innerText = "Source: " + (air.source || 'N/A');
 
-                document.getElementById('pm25').innerText = air.pm25 || '-';
+                document.getElementById('param-aqi').innerText = air.aqi || '-';
                 document.getElementById('pm10').innerText = air.pm10 || '-';
                 document.getElementById('o3').innerText = air.o3 || '-';
 
-                // เปลี่ยนสีและไอคอน
                 let bgClass = 'bg-gray-400';
                 let iconHtml = icons.neutral;
                 const aqiVal = parseInt(air.aqi);
+                
+                // คำนวณ Index สำหรับแถบสี (0-4)
+                let levelIndex = 0; 
 
                 if (!isNaN(aqiVal)) {
-                    if (aqiVal <= 25) { bgClass = 'bg-aqi-blue'; iconHtml = icons.smile; }
-                    else if (aqiVal <= 50) { bgClass = 'bg-aqi-green'; iconHtml = icons.smile; }
-                    else if (aqiVal <= 100) { bgClass = 'bg-aqi-yellow'; iconHtml = icons.neutral; }
-                    else if (aqiVal <= 200) { bgClass = 'bg-aqi-orange'; iconHtml = icons.frown; }
-                    else { bgClass = 'bg-aqi-red'; iconHtml = icons.sad; }
+                    if (aqiVal <= 25) { 
+                        bgClass = 'bg-aqi-blue'; iconHtml = icons.smile; levelIndex = 0;
+                    }
+                    else if (aqiVal <= 50) { 
+                        bgClass = 'bg-aqi-green'; iconHtml = icons.smile; levelIndex = 1;
+                    }
+                    else if (aqiVal <= 100) { 
+                        bgClass = 'bg-aqi-yellow'; iconHtml = icons.neutral; levelIndex = 2;
+                    }
+                    else if (aqiVal <= 200) { 
+                        bgClass = 'bg-aqi-orange'; iconHtml = icons.frown; levelIndex = 3;
+                    }
+                    else { 
+                        bgClass = 'bg-aqi-red'; iconHtml = icons.sad; levelIndex = 4;
+                    }
+                }
+
+                // 🔴 Logic เน้นข้อความ (Highlight Text) ตามระดับ AQI
+                for (let i = 0; i <= 4; i++) {
+                    const el = document.getElementById(`lvl-${i}`);
+                    if (i === levelIndex && !isNaN(aqiVal)) {
+                        // ถ้าตรงกับระดับปัจจุบัน: ตัวหนา, สีเข้มขึ้น, ใหญ่ขึ้นนิดนึง
+                        el.className = "flex-1 text-center transition-all duration-300 font-bold text-slate-700 scale-110";
+                    } else {
+                        // ถ้าไม่ใช่: สีจาง, ตัวปกติ
+                        el.className = "flex-1 text-center transition-all duration-300 text-slate-300 scale-100";
+                    }
                 }
 
                 aqiCard.classList.remove('bg-gray-300', 'bg-aqi-blue', 'bg-aqi-green', 'bg-aqi-yellow', 'bg-aqi-orange', 'bg-aqi-red');
@@ -166,7 +199,6 @@
                 console.error("Air Data Error:", air);
             }
 
-            // 3. อัปเดตส่วนประกาศ (Post)
             if (post) {
                 const postCard = document.getElementById('post-card');
                 postCard.classList.remove('hidden');
@@ -178,8 +210,6 @@
                 
                 if (post.type && post.type.trim() === 'image' && post.fileUrl) {
                     let finalUrl = post.fileUrl;
-
-                    // แปลงลิงก์ Google Drive
                     if (finalUrl.includes('drive.google.com')) {
                         let fileId = null;
                         if (finalUrl.includes('/d/')) {
@@ -198,7 +228,6 @@
                     img.classList.remove('hidden');
                     img.onerror = function() { 
                         this.classList.add('hidden'); 
-                        console.warn("โหลดรูปไม่สำเร็จ:", finalUrl);
                     };
                 } else {
                     img.classList.add('hidden');
@@ -206,8 +235,6 @@
             }
         }
 
-        // --- ส่วนสำคัญ: เรียกข้อมูล API ---
-        // ใช้ /api/data แทน ./data.json เพื่อวิ่งไปหา data.js ที่เป็น Backend
         fetch('/api/data') 
             .then(response => {
                 if (!response.ok) throw new Error(`HTTP Error! status: ${response.status}`);
@@ -216,7 +243,6 @@
             .then(data => updateDashboard(data))
             .catch(err => {
                 console.error("Fetch Error:", err);
-                // แสดง Error บนหน้าจอแทนการค้าง
                 document.getElementById('loading').innerText = "เชื่อมต่อ API ไม่ได้";
                 document.getElementById('loading').classList.remove('animate-pulse');
                 document.getElementById('loading').classList.add('text-red-500');
@@ -224,8 +250,3 @@
     </script>
 </body>
 </html>
-
-
-
-
-
